@@ -1,0 +1,12 @@
+services:
+  database_service:
+    image: postgres:17-alpine
+    container_name: data_container
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password1234
+      POSTGRES_DB: natural_event_db
+    ports:
+      - "5433:5432"   # porta host:container, cambio la porta per non confliggere con l'altro db
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
