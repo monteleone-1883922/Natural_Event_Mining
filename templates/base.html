@@ -216,6 +216,32 @@
             background-clip: text;
         }
 
+        .card-header .btn-light {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .card-header .btn-light:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Animazione solo per l'icona */
+        .rotating {
+            animation: rotate 1s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .page-header {
@@ -348,6 +374,36 @@
                     }
                 });
         }
+
+        function reloadChart(url, element_id, loading_id) {
+            const button = event.currentTarget;
+            const icon = button.querySelector('i');
+
+            // Aggiungi animazione rotazione
+            icon.classList.add('rotating');
+            button.disabled = true;
+
+
+            // Mostra loading e nascondi grafico
+            const container = document.getElementById(element_id);
+            const loading = document.getElementById(loading_id);
+
+            if (container) container.style.display = 'none';
+            if (loading) loading.style.display = 'flex';
+
+            // Ricarica heatmap
+            loadChart(
+                url,
+                element_id,
+                loading_id
+            );
+
+        // Rimuovi animazione dopo 2 secondi
+        setTimeout(() => {
+            icon.classList.remove('rotating');
+            button.disabled = false;
+        }, 2000);
+    }
     </script>
 
 

@@ -333,7 +333,7 @@ def api_seasonality():
         .agg([
         pl.len().alias('count')
     ]).with_columns(
-        pl.col(MONTH).map_elements(lambda m: month_map[m], return_dtype=pl.Utf8)
+        pl.col(MONTH).replace_strict(month_map, return_dtype=pl.Utf8)
     )
 
 

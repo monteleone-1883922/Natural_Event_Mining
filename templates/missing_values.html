@@ -42,8 +42,15 @@
             <!-- Missing Percentage Chart -->
             <div class="col-lg-6 mb-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-chart-bar"></i> Missing Percentage by Column
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/missing-values/percentage-chart',
+                            'missingPercentChart',
+                            'loading-missingPercentChart'
+                            )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                     <div class="card-body">
                         <!-- Loading spinner -->
@@ -62,8 +69,15 @@
             <!-- Missing Count Chart -->
             <div class="col-lg-6 mb-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-sort-amount-down"></i> Missing Count by Column
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/missing-values/count-chart',
+                            'missingCountChart',
+                            'loading-missingCountChart'
+                            )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                     <div class="card-body">
                         <!-- Loading spinner -->
@@ -84,8 +98,15 @@
         <div class="row">
             <div class="col-12 mb-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-th"></i> Missing Values Pattern Heatmap
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/missing-values/heatmap',
+                            'missingHeatmap',
+                            'loading-missingHeatmap'
+                            )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                     <div class="card-body">
                         <!-- Loading spinner -->

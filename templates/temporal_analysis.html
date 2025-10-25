@@ -18,8 +18,15 @@
             <!-- Missing Percentage Chart -->
             <div class="col-12 mb-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-chart-bar"></i> Temporal distribution chart by event type
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/temporal_analysis/temporal_distribution',
+                            'temporalDistributionChart',
+                            'loading-temporal'
+                            )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                     <div class="card-body">
                         <!-- Loading spinner -->
@@ -40,8 +47,11 @@
             <!-- Missing Percentage Chart -->
             <div class="col-12 mb-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-chart-bar"></i> Monthly distribution Heatmap - {{ event_type }}
+                        <button class="btn btn-sm btn-light" onclick="reloadChartEventType('{{ eventType }}')" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                     <div class="card-body">
                         <div id="loading-{{ event_type }}" class="loading">
@@ -60,8 +70,16 @@
             <!-- Missing Percentage Chart -->
             <div class="col-12 mb-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-chart-bar"></i> Seasonal distribution chart by event type
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/temporal_analysis/seasonality',
+                            'seasonalDistributionChart',
+                            'loading-seasonal'
+                            )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+
                     </div>
                     <div class="card-body">
                         <!-- Loading spinner -->
@@ -108,6 +126,13 @@
         'seasonalDistributionChart',
         'loading-seasonal'
     );
+
+    function reloadChartEventType(event_type) {
+        const url = `/api/temporal_analysis/monthly_distribution/${event_type}`;
+        const containerId = `heatmap-${event_type}`;
+        const loadingId = `loading-${event_type}`;
+        reloadChart(url, containerId, loadingId);
+    }
 
 
 
