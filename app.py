@@ -80,23 +80,57 @@ def temporal_analysis():
 
 @app.route('/geographic_analysis')
 def geographic_analysis():
-    return render_template('geographic_analysis_home.html')
+    geographic_sections = [
+            {
+                'title': 'Map of all events',
+                'description': 'Analyze events distribution across the world',
+                'url': '/geographic_analysis/maps/all',
+                'icon': 'globe',
+                'color': 'primary'  # Blu - neutro per "tutti"
+            },
+            {
+                'title': 'Map of earthquakes',
+                'description': 'Analyze earthquakes distribution across the world',
+                'url': '/geographic_analysis/maps/earthquake',
+                'icon': 'mountain',  # Icona più appropriata
+                'color': 'danger'  # Rosso - pericolo/impatto forte
+            },
+            {
+                'title': 'Map of eruptions',
+                'description': 'Analyze eruptions distribution across the world',
+                'url': '/geographic_analysis/maps/eruption',
+                'icon': 'fire',  # Icona vulcano
+                'color': 'warning'  # Arancione - fuoco/lava
+            },
+            {
+                'title': 'Map of tornadoes',
+                'description': 'Analyze tornadoes distribution across the world',
+                'url': '/geographic_analysis/maps/tornado',
+                'icon': 'wind',  # Icona tornado
+                'color': 'info'  # Azzurro - cielo/tempesta
+            },
+            {
+                'title': 'Map of tsunamis',
+                'description': 'Analyze tsunamis distribution across the world',
+                'url': '/geographic_analysis/maps/tsunami',
+                'icon': 'water',  # Icona onda
+                'color': 'primary'  # Blu - acqua/mare
+            },
+            {
+                'title': 'Heatmap of all events',
+                'description': 'Heatmap of all events across the world',
+                'url': '/geographic_analysis/maps/heatmap',
+                'icon': 'layer-group',  # Icona più appropriata per heatmap
+                'color': 'success'  # Verde - densità/aggregazione
+            }
+        ]
+
+    return render_template('geographic_analysis_home.html', geographic_sections=geographic_sections)
 
 @app.route("/geographic_analysis/maps/<string:map>")
 def maps_page(map):
-    # Legge i file delle mappe generati da Folium
-    maps = {}
-    for name in ["events_map_all", "events_heatmap"]:
-        file_path = HTMLS_PATH + f"{name}.html"
-        if os.path.exists(file_path):
-            maps[name] = file_path.read_text(encoding="utf-8")
-        else:
-            maps[name] = "<p class='text-danger'>Map not available yet.</p>"
+    return render_template(f'events_map_{map}.html')
 
-    return render_template(
-        "map.html",
-        map=Markup(maps["events_map_all"]),title=map,
-    )
 
 
 @app.route('/api/missing-values/percentage-chart')

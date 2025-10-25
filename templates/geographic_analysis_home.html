@@ -11,6 +11,34 @@
             <p class="lead">Geographic analysis of data</p>
         </div>
 
+        <!-- Navigation Menu -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-compass"></i> Geographic Analysis Sections
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            {% for section in geographic_sections %}
+                            <div class="col-md-4">
+                                <div class="card h-100 border-{{ section.color }} navigation-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-{{ section.icon }} fa-3x text-{{ section.color }} mb-3"></i>
+                                        <h5 class="card-title">{{ section.title }}</h5>
+                                        <p class="card-text">{{ section.description }}</p>
+                                        <a href="{{ section.url }}" class="btn btn-{{ section.color }}">
+                                            View Analysis <i class="fas fa-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Heatmap -->
         <div class="row">
@@ -116,6 +144,30 @@
 
     </div>
 </main>
+
+<style>
+    .navigation-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .navigation-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .navigation-card .card-body {
+        padding: 2rem;
+    }
+
+    .navigation-card i {
+        transition: transform 0.3s ease;
+    }
+
+    .navigation-card:hover i {
+        transform: scale(1.1);
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
