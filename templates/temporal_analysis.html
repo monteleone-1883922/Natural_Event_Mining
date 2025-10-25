@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Temporal Analysis - Natural Events Dashboard{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-clock"></i> Temporal Analysis</h1>
+            <p class="lead">Temporal analysis of data</p>
+        </div>
+
+
+
+        <!-- Charts -->
+        <div class="row">
+            <!-- Missing Percentage Chart -->
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar"></i> Temporal distribution chart by event type
+                    </div>
+                    <div class="card-body">
+                        <div id="temporalDistributionChart"></div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <!-- Heatmap -->
+
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Carica il grafico percentuali
+    fetch('/api/temporal_analysis/temporal_distribution')
+        .then(res => res.json())
+        .then(fig => Plotly.newPlot('temporalDistributionChart', fig.data, fig.layout));
+
+
+</script>
+{% endblock %}

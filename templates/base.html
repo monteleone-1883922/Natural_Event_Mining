@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Natural Events Analysis{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #1a1f3a;
+            --secondary: #2d4263;
+            --accent: #c84b31;
+            --light: #ecdbba;
+            --success: #27ae60;
+            --info: #3498db;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(26, 31, 58, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--light) !important;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-brand i {
+            color: var(--accent);
+        }
+
+        .nav-link {
+            color: rgba(236, 219, 186, 0.85) !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            margin: 0 0.25rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(236, 219, 186, 0.1);
+            color: var(--light) !important;
+            transform: translateY(-2px);
+        }
+
+        .nav-link.active {
+            background: var(--accent);
+            color: white !important;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 200px);
+        }
+
+        /* Page Header */
+        .page-header {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-header h1 {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header .lead {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            background: white;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 1.25rem 1.5rem;
+            font-size: 1.1rem;
+        }
+
+        .card-header i {
+            margin-right: 0.5rem;
+            color: var(--light);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            min-height: 400px;
+            padding: 1rem;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            gap: 1rem;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3rem;
+        }
+
+        .loading-text {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        /* Buttons */
+        .btn-custom {
+            padding: 0.75rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary-custom {
+            background: linear-gradient(135deg, var(--accent) 0%, #e86b54 100%);
+            color: white;
+        }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(200, 75, 49, 0.4);
+        }
+
+        /* Footer */
+        footer {
+            background: rgba(26, 31, 58, 0.95);
+            color: var(--light);
+            padding: 2rem 0;
+            margin-top: 4rem;
+        }
+
+        footer a {
+            color: var(--light);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        footer a:hover {
+            color: var(--accent);
+        }
+
+        /* Utilities */
+        .bg-gradient-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, var(--accent) 0%, #e86b54 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .page-header {
+                padding: 1.5rem;
+            }
+
+            .page-header h1 {
+                font-size: 1.75rem;
+            }
+
+            .navbar-brand {
+                font-size: 1.25rem;
+            }
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-globe-americas"></i>
+                Natural Events Dashboard
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                            <i class="fas fa-home"></i> Home
+                        </a>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-line"></i> Analysis Tools
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item {% if request.path == '/missing_values' %}active{% endif %}" href="/missing_values">
+                                    <i class="fas fa-database"></i> Missing Values Analysis
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == '/temporal_analysis' %}active{% endif %}" href="/temporal_analysis">
+                                    <i class="fas fa-clock"></i> Temporal Analysis
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == '/geographic' %}active{% endif %}" href="/geographic">
+                                    <i class="fas fa-map-marked-alt"></i> Geographic Analysis
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == '/comparative' %}active{% endif %}" href="/comparative">
+                                    <i class="fas fa-chart-bar"></i> Comparative Analysis
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    {% block content %}{% endblock %}
+
+    <!-- Footer -->
+    <footer class="text-center">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <h5><i class="fas fa-globe-americas text-gradient"></i> Natural Events Analysis</h5>
+                    <p class="mb-0">Comprehensive data visualization and exploration platform</p>
+                </div>
+            </div>
+            <hr style="border-color: rgba(236, 219, 186, 0.2);">
+            <div class="row">
+                <div class="col-md-12">
+                    <p class="mb-0">&copy; 2025 Natural Events Dashboard. Built with Flask, Plotly & Folium</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Utility Functions -->
+    <script>
+        // Function to load chart with error handling
+        function loadChart(url, containerId, loadingId) {
+            const container = document.getElementById(containerId);
+            const loading = document.getElementById(loadingId);
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(figure => {
+                    if (loading) loading.style.display = 'none';
+                    if (container) {
+                        container.style.display = 'block';
+                        Plotly.newPlot(containerId, figure.data, figure.layout, {
+                            responsive: true,
+                            displayModeBar: true,
+                            displaylogo: false
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chart:', error);
+                    if (loading) {
+                        loading.innerHTML = `
+                            <div class="alert alert-danger" role="alert">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Error loading chart. Please try refreshing the page.
+                            </div>
+                        `;
+                    }
+                });
+        }
+    </script>
+
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

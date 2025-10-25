@@ -7,6 +7,6 @@ services:
       POSTGRES_PASSWORD: password1234
       POSTGRES_DB: natural_event_db
     ports:
-      - "5433:5432"   # porta host:container, cambio la porta per non confliggere con l'altro db
+      - "5433:5432"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

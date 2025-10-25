@@ -1,0 +1,20 @@
+name: Natural_Event_Mining
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - polars=1
+  - cmake>=3.25  # AGGIUNGI QUESTA RIGA
+  - ninja
+  - numpy
+  - pip
+  - altair>=5.4.0
+  - Flask
+  - folium
+  - plotly
+  - seaborn
+  - matplotlib
+  - pip:
+      - connectorx  # Per connessioni veloci a PostgreSQL con Polars
+      - pyarrow

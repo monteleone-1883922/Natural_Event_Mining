@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Natural Events Analysis{% endblock %}
+
+{% block content %}
+
+<!-- Main Content -->
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Events</h5>
+                        <h2 class="card-text">{{ stats.total_events }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title">Years Covered</h5>
+                        <h4 class="card-text">{{ stats.years_covered }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">Countries</h5>
+                        <h2 class="card-text">{{ stats.countries }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-4">
+            {% for event_type in stats.event_types %}
+            <div class="col-md-3 mb-3">
+                <div class="card text-white
+                    {% set colors = ['bg-primary', 'bg-success', 'bg-warning', 'bg-info', 'bg-danger', 'bg-secondary'] %}
+                    {{ colors[loop.index0 % colors|length] }}
+                ">
+                    <div class="card-body text-center">
+                        <h2 class="card-title">{{ event_type['event_type'] }}</h2>
+                        <h3 class="card-text">{{ event_type['count'] }}</h3>
+                        <small>{{ ((event_type['count'] / stats.total_events) * 100)|round(1) }}%</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</main>
+
+{% endblock %}

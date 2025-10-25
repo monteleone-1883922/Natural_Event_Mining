@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Missing Values Analysis - Natural Events Dashboard{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-database"></i> Missing Values Analysis</h1>
+            <p class="lead">Comprehensive analysis of data completeness and missing value patterns</p>
+        </div>
+        <!-- summary table -->
+        <div class="row mb-4">
+            {% for key, value in stats.items() %}
+            <div class="col-md-3 mb-3">
+                <div class="card
+                    {% if key == 'quality_score' %}bg-success text-white
+                    {% elif key == 'critical_columns' %}bg-danger text-white
+                    {% elif key == 'complete_columns' %}bg-primary text-white
+                    {% else %}bg-light{% endif %}">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-uppercase small fw-bold">
+                            {{ key|replace('_', ' ')|title }}
+                        </h6>
+                        <h3 class="card-text mb-0">
+                            {% if key == 'quality_score' %}
+                                {{ "%.1f"|format(value) }}%
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+
+        <!-- Charts -->
+        <div class="row">
+            <!-- Missing Percentage Chart -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar"></i> Missing Percentage by Column
+                    </div>
+                    <div class="card-body">
+                        <div id="missingPercentChart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Missing Count Chart -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-sort-amount-down"></i> Missing Count by Column
+                    </div>
+                    <div class="card-body">
+                        <div id="missingCountChart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Heatmap -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-th"></i> Missing Values Pattern Heatmap
+                    </div>
+                    <div class="card-body">
+                        <div id="missingHeatmap"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Carica il grafico percentuali
+    fetch('/api/missing-values/percentage-chart')
+        .then(res => res.json())
+        .then(fig => Plotly.newPlot('missingPercentChart', fig.data, fig.layout));
+
+    // Carica il grafico conteggi
+    fetch('/api/missing-values/count-chart')
+        .then(res => res.json())
+        .then(fig => Plotly.newPlot('missingCountChart', fig.data, fig.layout));
+
+    // Carica la heatmap
+    fetch('/api/missing-values/heatmap')
+        .then(res => res.json())
+        .then(fig => Plotly.newPlot('missingHeatmap', fig.data, fig.layout));
+</script>
+{% endblock %}
