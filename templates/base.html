@@ -299,7 +299,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item {% if request.path == '/geographic' %}active{% endif %}" href="/geographic">
+                                <a class="dropdown-item {% if request.path == '/geographic_analysis' %}active{% endif %}" href="/geographic_analysis">
                                     <i class="fas fa-map-marked-alt"></i> Geographic Analysis
                                 </a>
                             </li>
@@ -380,7 +380,9 @@
             const icon = button.querySelector('i');
 
             // Aggiungi animazione rotazione
-            icon.classList.add('rotating');
+            if (icon !== null && icon !== undefined) {
+                icon.classList.add('rotating');
+            }
             button.disabled = true;
 
 
@@ -400,7 +402,9 @@
 
         // Rimuovi animazione dopo 2 secondi
         setTimeout(() => {
-            icon.classList.remove('rotating');
+            if (icon !== null && icon !== undefined) {
+                icon.classList.remove('rotating');
+            }
             button.disabled = false;
         }, 2000);
     }

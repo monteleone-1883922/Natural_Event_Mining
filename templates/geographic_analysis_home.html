@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Missing Values Analysis - Natural Events Dashboard{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-database"></i> Geographic Analysis</h1>
+            <p class="lead">Geographic analysis of data</p>
+        </div>
+
+
+        <!-- Heatmap -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Top countries by events
+                        <form id="countryForm" class="d-flex align-items-center" onsubmit=" update_prevent_default();">
+                            <label for="limit" class="me-1 mb-0">Limit:</label>
+                            <input type="number" id="limit" class="form-control form-control-sm me-2" value="20" min="1" style="width: 80px;">
+
+                            <label for="offset" class="me-1 mb-0">Offset:</label>
+                            <input type="number" id="offset" class="form-control form-control-sm me-2" value="0" min="0" style="width: 80px;">
+
+                             <label for="eventType" class="me-1 mb-0">EventType:</label>
+                             <select id="eventType" class="form-select form-select-sm me-2" style="width: 120px;">
+                                 <option value="all">All</option>
+                                 <option value="tornado">Tornado</option>
+                                 <option value="eruption">Eruption</option>
+                                 <option value="tsunami">Tsunami</option>
+                                 <option value="earthquake">Earthquake</option>
+                             </select>
+
+                            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                        </form>
+                        <button class="btn btn-sm btn-light" onclick="updateCountries()" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner -->
+                        <div id="loading-topCountries" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading temporal distribution...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="topCountriesByEvents" class="chart-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-6 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Events by Region
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/geographic_analysis/events_by_region/1',
+                            'regionalEvents_region',
+                            'loading-regionalEvents_region'
+                            )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" style="height: 800px;">
+                        <!-- Loading spinner -->
+                        <div id="loading-regionalEvents_region" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading events by region...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="regionalEvents_region"
+                             class="chart-container"
+                             style="display: none; width: 100%; height: 100%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Regions by Events
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/geographic_analysis/events_by_region/0',
+                            'regionalEvents_type',
+                            'loading-regionalEvents_type'
+                            )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" style="height: 800px;">
+                        <!-- Loading spinner -->
+                        <div id="loading-regionalEvents_type" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading regions by event...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="regionalEvents_type"
+                             class="chart-container"
+                             style="display: none; width: 100%; height: 100%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Carica il grafico percentuali
+    loadChart(
+        '/api/geographic_analysis/top_countries_by_events/all/20/0',
+        'topCountriesByEvents',
+        'loading-topCountries'
+    );
+
+    loadChart(
+        '/api/geographic_analysis/events_by_region/1',
+        'regionalEvents_region',
+        'loading-regionalEvents_region'
+    );
+    loadChart(
+        '/api/geographic_analysis/events_by_region/0',
+        'regionalEvents_type',
+        'loading-regionalEvents_type'
+    );
+
+    function updateCountries() {
+        const limit = document.getElementById('limit').value;
+        const offset = document.getElementById('offset').value;
+        const eventType = document.getElementById('eventType').value;
+        const url = `/api/geographic_analysis/top_countries_by_events/${eventType}/${limit}/${offset}`;
+        reloadChart(url, 'topCountriesByEvents', 'loading-topCountries');
+    }
+    function update_prevent_default(){
+        event.preventDefault();
+        updateCountries()
+    }
+
+
+</script>
+{% endblock %}

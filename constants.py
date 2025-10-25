@@ -7,7 +7,7 @@ DEFAULT_SCHEMA =  "public"
 DEFAULT_CONTAINER = "database_service"
 COMPOSE_FILE_PATH = "DockerCompose.yml"
 TEMPLATES_PATH = "templates/"
-HTMLS_PATH = "analysis_files/html/"
+HTMLS_PATH = "templates/"
 # SQL Queries
 ALL_EVENTS = "SELECT * FROM natural_event"
 ALL_TORNADOES = "SELECT * FROM tornado_trace"

@@ -1,14 +1,19 @@
 import json
+import os
 
 import plotly
 from flask import Flask, render_template, jsonify, send_file
 import plotly.express as px
 import plotly.graph_objects as go
 import polars as pl
+from markupsafe import Markup
+
 from plotly.subplots import make_subplots
 from sql_engine import engine
 from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, LATITUDE, LONGITUDE, REGION, NATURAL_EVENT_ID, \
     LATITUDE_END, LONGITUDE_END, HTMLS_PATH, TEMPLATES_PATH
+from subprocessing import start_map_generation
+
 app = Flask(__name__)
 
 df_events = engine.get_all_events()
@@ -72,6 +77,26 @@ def api_missing_values():
 def temporal_analysis():
     event_types = df_events.select(EVENT_TYPE).unique().to_series().to_list()
     return render_template('temporal_analysis.html', event_types=event_types)
+
+@app.route('/geographic_analysis')
+def geographic_analysis():
+    return render_template('geographic_analysis_home.html')
+
+@app.route("/geographic_analysis/maps/<string:map>")
+def maps_page(map):
+    # Legge i file delle mappe generati da Folium
+    maps = {}
+    for name in ["events_map_all", "events_heatmap"]:
+        file_path = HTMLS_PATH + f"{name}.html"
+        if os.path.exists(file_path):
+            maps[name] = file_path.read_text(encoding="utf-8")
+        else:
+            maps[name] = "<p class='text-danger'>Map not available yet.</p>"
+
+    return render_template(
+        "map.html",
+        map=Markup(maps["events_map_all"]),title=map,
+    )
 
 
 @app.route('/api/missing-values/percentage-chart')
@@ -344,7 +369,75 @@ def api_seasonality():
     return fig_to_json_response(fig, seasonality.to_pandas(), MONTH, 'count', EVENT_TYPE)
 
 
-def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z=None):
+@app.route('/api/geographic_analysis/top_countries_by_events/<string:event_type>/<int:limit>/<int:offset>')
+def api_top_countries_by_events(event_type, limit, offset):
+    if event_type != 'all':
+        df_events_filtered = df_events.filter(pl.col(EVENT_TYPE) == event_type)
+    else:
+        df_events_filtered = df_events
+    top_countries = (
+        df_events_filtered
+        .group_by(COUNTRY)
+        .agg(pl.len().alias('count'))
+        .sort('count', descending=True)
+        .slice(offset, limit)
+        .sort('count')
+    )
+
+    top_countries_pandas = top_countries.to_pandas()
+
+    # Crea il grafico interattivo con Plotly
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        y=top_countries_pandas[COUNTRY],
+        x=top_countries_pandas['count'],
+        orientation='h',
+        marker=dict(
+            color='lightblue',
+            line=dict(color='darkblue', width=1)
+        ),
+        hovertemplate='<b>%{y}</b><br>Events: %{x}<extra></extra>'
+    ))
+
+    # Layout del grafico
+    fig.update_layout(
+        title=dict(
+            text=f'Top {limit} Countries by Number of Events with offset {offset}',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=20)
+        ),
+        xaxis=dict(
+            title='Number of Events',
+            gridcolor='lightgray'
+        ),
+        yaxis=dict(
+            title='Country',
+            categoryorder='total ascending'
+        ),
+        plot_bgcolor='white',
+        height=500 + (limit * 20),  # Altezza dinamica in base al numero di paesi
+        margin=dict(l=80, r=30, t=80, b=60)
+    )
+
+    # Restituisci il grafico come JSON
+    return fig_to_json_response(fig, top_countries_pandas, 'count', COUNTRY)
+
+@app.route('/api/geographic_analysis/events_by_region/<int:region_first>')
+def api_events_by_region(region_first):
+    group = [REGION, EVENT_TYPE] if region_first > 0 else [EVENT_TYPE, REGION]
+    events_by_region = df_events.filter(pl.col(REGION).is_not_null()) \
+        .group_by(group) \
+        .agg(pl.len().alias('count'))
+
+    fig = px.sunburst(events_by_region, path=group, values='count',
+                      title='Event Distribution by Region and Type')
+
+    return fig_to_json_response(fig, events_by_region.to_pandas(), values=fig.data[0]['values'].tolist())
+
+
+def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z=None, values=None):
     """
     Converte un oggetto Plotly Figure in JSON compatibile con Plotly.js,
     risolvendo il problema dei dati binari (bdata) per qualsiasi tipo di grafico.
@@ -357,6 +450,7 @@ def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z
     Returns:
         Flask `jsonify` con i dati compatibili per Plotly.js
     """
+
     fig_json = json.loads(fig.to_json())
 
     for trace in fig_json.get("data", []):
@@ -374,6 +468,10 @@ def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z
             elif df is not None and y_col:
                 trace["y"] = list(df[y_col])
 
+        if isinstance(trace.get("values", []), dict) and "bdata" in trace["values"]:
+            if df is not None and values:
+                trace["values"] = values
+
         # --- Fix z (es. heatmap) ---
         if isinstance(trace.get("z", []), dict) and "bdata" in trace["z"]:
             if df is not None and z is not None:
@@ -382,6 +480,9 @@ def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z
                 trace["z"] = []
 
     return jsonify(fig_json)
+
+
+
 
 
 
@@ -398,4 +499,5 @@ def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z
 
 
 if __name__ == '__main__':
+    start_map_generation()
     app.run(debug=True)
