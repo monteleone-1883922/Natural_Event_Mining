@@ -1,5 +1,6 @@
 import json
 
+import plotly
 from flask import Flask, render_template, jsonify, send_file
 import plotly.express as px
 import plotly.graph_objects as go
@@ -69,7 +70,8 @@ def api_missing_values():
 
 @app.route('/temporal_analysis')
 def temporal_analysis():
-    return render_template('temporal_analysis.html')
+    event_types = df_events.select(EVENT_TYPE).unique().to_series().to_list()
+    return render_template('temporal_analysis.html', event_types=event_types)
 
 
 @app.route('/api/missing-values/percentage-chart')
@@ -246,8 +248,8 @@ def api_event_temporal_distribution():
         pl.len().alias('count')
     ]).sort([YEAR, EVENT_TYPE])
     events_by_year = events_by_year.with_columns(pl.col(YEAR).cast(pl.Int64))
-
-    fig_px = px.line(events_by_year.to_pandas(), x=YEAR, y='count', color=EVENT_TYPE,
+    df_pandas = events_by_year.to_pandas()
+    fig_px = px.line(df_pandas, x=YEAR, y='count', color=EVENT_TYPE,
                   title='Event Frequency per Year',
                   labels={'count': 'Number of Events', YEAR: 'Year'})
     fig_px.update_layout(
@@ -258,13 +260,129 @@ def api_event_temporal_distribution():
         legend=dict(title='Event Type'),
         autosize=True
     )
-    fig_px.show()
-    fi = fig_px.to_json()
-    with open("trial.json", "w") as f:
-        json.dump(fi, f)
+
+    return fig_to_json_response(fig_px, df_pandas, YEAR, 'count', EVENT_TYPE)
+
+@app.route('/api/temporal_analysis/monthly_distribution/<string:event_type>')
+def api_monthly_distribution(event_type):
+    df_events_w_month = df_events.filter((pl.col(MONTH).is_not_null()) & (pl.col(EVENT_TYPE) == event_type))
+    df_events_w_month = df_events_w_month.with_columns([
+        pl.col(YEAR).cast(pl.Int32),
+        pl.col(MONTH).cast(pl.Int32)
+    ])
+
+    month_events = df_events_w_month.group_by([YEAR, MONTH]).agg([
+        pl.len().alias('count')
+    ])
+    pivot = month_events.pivot(
+        values='count',
+        index=MONTH,
+        on=YEAR,
+        aggregate_function='first'
+    ).sort(MONTH)
+
+    pivot_pandas = pivot.to_pandas()
+    pivot_pandas = pivot_pandas.set_index(MONTH).reindex(
+        sorted(pivot_pandas.columns, key=lambda x: int(x) if x.isdigit() else -1000000),
+        axis=1
+    ).fillna(0)
+    pivot_pandas.columns = pivot_pandas.columns.astype(str)  # forza colonne = anni stringa
+    pivot_pandas = pivot_pandas.iloc[:, 1:]
+
+    month_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    z_values = pivot_pandas.values.astype(float)
+    z_max = z_values.max()
+    if z_max > 0:
+        z_values /= z_max
+    z_values = z_values.tolist()
+
+    fig = go.Figure(data=go.Heatmap(
+        z=z_values,
+        x=pivot_pandas.columns.tolist(),
+        y=month_labels,
+        colorscale='YlOrRd',
+        hovertemplate='Year: %{x}<br>Month: %{y}<br>Count: %{z}<extra></extra>',
+        colorbar=dict(title='Count')
+    ))
+
+    fig.update_layout(
+        title=f'Monthly Heatmap - {event_type}',
+        xaxis_title='Year',
+        yaxis_title='Month',
+        height=500,
+        xaxis=dict(tickangle=90),
+        yaxis=dict(autorange='reversed')  # Gennaio in alto
+    )
+
+    # Restituisci il JSON per Plotly.js
+    return fig_to_json_response(fig, pivot_pandas, MONTH, 'count', z=z_values)
 
 
-    return jsonify(fig_px.to_json())
+@app.route('/api/temporal_analysis/seasonality')
+def api_seasonality():
+    ordered_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    month_map = {
+        1.0: "Jan", 2.0: "Feb", 3.0: "Mar", 4.0: "Apr",
+        5.0: "May", 6.0: "Jun", 7.0: "Jul", 8.0: "Aug",
+        9.0: "Sep", 10.0: "Oct", 11.0: "Nov", 12.0: "Dec"
+    }
+    seasonality = df_events.filter(pl.col(MONTH).is_not_null()).group_by([MONTH, EVENT_TYPE]) \
+        .agg([
+        pl.len().alias('count')
+    ]).with_columns(
+        pl.col(MONTH).map_elements(lambda m: month_map[m], return_dtype=pl.Utf8)
+    )
+
+
+    fig = px.bar(seasonality.to_pandas(), x=MONTH, y='count', color=EVENT_TYPE,
+                 title='Seasonal Distribution of Events',
+                 labels={'count': 'Number of Events', MONTH: 'Month'},
+                 barmode='group', category_orders={MONTH: ordered_months})
+    return fig_to_json_response(fig, seasonality.to_pandas(), MONTH, 'count', EVENT_TYPE)
+
+
+def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z=None):
+    """
+    Converte un oggetto Plotly Figure in JSON compatibile con Plotly.js,
+    risolvendo il problema dei dati binari (bdata) per qualsiasi tipo di grafico.
+
+    Args:
+        fig: oggetto Plotly Figure (es. px.line, go.Figure, ecc.)
+        df: DataFrame Pandas/Polars usato per generare il grafico (opzionale)
+        x_col, y_col, color_col, z_col: nomi delle colonne (opzionali, per figure non standard)
+
+    Returns:
+        Flask `jsonify` con i dati compatibili per Plotly.js
+    """
+    fig_json = json.loads(fig.to_json())
+
+    for trace in fig_json.get("data", []):
+        # --- Fix x ---
+        if isinstance(trace.get("x", []), dict) and "bdata" in trace["x"]:
+            if df is not None and x_col and color_col and "name" in trace:
+                trace["x"] = list(df[df[color_col] == trace["name"]][x_col])
+            elif df is not None and x_col:
+                trace["x"] = list(df[x_col])
+
+        # --- Fix y ---
+        if isinstance(trace.get("y", []), dict) and "bdata" in trace["y"]:
+            if df is not None and y_col and color_col and "name" in trace:
+                trace["y"] = list(df[df[color_col] == trace["name"]][y_col])
+            elif df is not None and y_col:
+                trace["y"] = list(df[y_col])
+
+        # --- Fix z (es. heatmap) ---
+        if isinstance(trace.get("z", []), dict) and "bdata" in trace["z"]:
+            if df is not None and z is not None:
+                trace["z"] = list(z)
+            elif "zsrc" not in trace:  # fallback: svuota z se non specificato
+                trace["z"] = []
+
+    return jsonify(fig_json)
+
 
 
 # @app.route('/api/my-endpoint')
