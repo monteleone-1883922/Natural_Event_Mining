@@ -53,6 +53,48 @@ WHERE ne.latitude IS NOT NULL AND ne.longitude IS NOT NULL AND
 CORRELATION_NATURAL_EVENT_QUERY="""select ne.latitude, ne.longitude, ne.damagemillionsdollars, ne.deaths,
        ne.missing, ne.housesdamaged, ne.housesdestroyed, ne.injuries, ne.event_year, ne.milliondollarscropsdamage {additional_selection}
 from natural_event as ne {join_condition}"""
+EVENTS_RELATED_QUERY="""select ne1.event_type as event_1, ne2.event_type as event_2, count(1) as num_events
+from related_event as re join natural_event as ne1 on re.event1_id = ne1.id
+    join natural_event as ne2 on re.event2_id = ne2.id
+where ne1.event_type <> 'tornado'
+group by ne1.event_type, ne2.event_type;"""
+# ne1.longitude as event1_, ne1.latitude, ne2.longitude, ne2.latitude,
+#        ne1.id, ne2.id, ne1.event_timestamp, ne2.event_timestamp,
+#        tr1.tornado_id as tornado1_id, tr2.tornado_id as tornado2_id,
+CONCATENATED_EVENTS_QUERY="""select ne1.event_type, ne1.event_year, ne1.event_month, ne1.event_day,ne1.id as id1, ne2.id as id2,
+                            6371 * 2 * ASIN(SQRT(
+                                    POWER(SIN((RADIANS(ne1.latitude) - RADIANS(ne2.latitude)) / 2), 2) +
+                                    COS(RADIANS(ne1.latitude)) * COS(RADIANS(ne2.latitude)) *
+                                    POWER(SIN((RADIANS(ne1.longitude) - RADIANS(ne2.longitude)) / 2), 2)
+                                )) as distance, CASE
+    WHEN ne1.event_type='earthquake'
+        THEN cast(ea.eqmagnitude as float)
+    WHEN ne1.event_type='tornado'
+        THEN cast(tr1.f_scale as float)
+    WHEN ne1.event_type='tsunami'
+        THEN cast(ts.maxwaterheight as float)
+    WHEN ne1.event_type='eruption'
+        THEN cast(er.vei as float) END as intensity
+from natural_event as ne1 left join tornado_trace as tr1 on ne1.id = tr1.natural_event_id
+    left join earthquake as ea on ne1.id = ea.natural_event_id
+    left join eruption as er on ne1.id = er.natural_event_id
+    left join tsunami as ts on ne1.id = ts.natural_event_id
+    join natural_event as ne2 on ne1.id < ne2.id and
+                                 ne1.event_year = ne2.event_year and
+                                 ne1.event_type = ne2.event_type and
+                                 ne1.event_month = ne2.event_month and
+                                 ne1.event_day = ne2.event_day and 6371 * 2 * ASIN(SQRT(
+                                    POWER(SIN((RADIANS(ne1.latitude) - RADIANS(ne2.latitude)) / 2), 2) +
+                                    COS(RADIANS(ne1.latitude)) * COS(RADIANS(ne2.latitude)) *
+                                    POWER(SIN((RADIANS(ne1.longitude) - RADIANS(ne2.longitude)) / 2), 2)
+                                )) < {radius}
+left join tornado_trace as tr2 on ne2.id = tr2.natural_event_id
+where ne1.event_month is not null and ne1.event_day is not null and
+      ne2.event_month is not null and ne2.event_day is not null and
+      ne1.longitude is not null and ne1.latitude is not null and
+      ne2.longitude is not null and ne2.latitude is not null and
+      (ne1.event_type <> 'tornado' or ne2.event_type <> 'tornado' or
+       (tr1.tornado_id <> tr2.tornado_id and tr1.tornado_id is not null and tr2.tornado_id is not null));"""
 JOIN_WITH_NATURAL_EVENT="join {event} as e on e.natural_event_id = ne.id "
 
 CORRELATION_FIELDS_EARTHQUAKE=",e.eqmagnitude, e.intensity, e.eqdepth "

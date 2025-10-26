@@ -89,6 +89,12 @@ class SqlEngine:
         return self.query(CORRELATION_NATURAL_EVENT_QUERY
                           .format(additional_selection=additional_selection, join_condition=join_condition))
 
+    def get_related_events_counts(self):
+        return self.query(EVENTS_RELATED_QUERY)
+
+    def get_concatenated_events(self, radius):
+        return self.query(CONCATENATED_EVENTS_QUERY.format(radius=radius))
+
 
     def get_all_earthquakes(self):
         return self.query(ALL_EARTHQUAKES)

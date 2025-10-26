@@ -125,4 +125,4 @@ def start_map_generation(engine: SqlEngine):
         p.start()
         print("🚀 Map generations for intensities starting in background.")
     elif not missing:
-        print("✅ Tutte le mappe già presenti, nessuna generazione necessaria.")
+        print("✅ All maps already generated.")

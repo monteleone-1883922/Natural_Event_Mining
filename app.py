@@ -531,6 +531,82 @@ def api_correlation_matrix(event_type):
     return fig_to_json_response(fig)
 
 
+@app.route('/api/correlation_analysis/related_events')
+def api_related_events():
+    df = engine.get_related_events_counts().with_columns(
+        pl.concat_str([pl.col("event_1"), pl.col("event_2")], separator=" - ").alias("relation")
+    ).select(["relation", "num_events"])
+    fig = px.bar(
+        df.to_pandas(),
+        x="relation",
+        y="num_events",
+        orientation="v",
+        title="Relations between different events",
+        labels={"relation": "Events Relation", 'num_events': 'Number of events'}
+    )
+    return fig_to_json_response(fig)
+
+@app.route('/api/correlation_analysis/stats/<int:radius>')
+def api_stats(radius):
+    df = engine.get_concatenated_events(radius)
+    df_by_event = df.group_by(EVENT_TYPE).agg(
+        pl.col("distance").mean().alias("avg_distance"),
+        pl.col("intensity").mean().alias("avg_intensity")
+    )
+    df_max_in_day = (
+        df.group_by([YEAR, MONTH, DAY, EVENT_TYPE])
+        .agg(
+            pl.concat_list(["id1", "id2"]).alias("all_ids")
+        )
+        .with_columns(
+            pl.col("all_ids").list.n_unique().alias("count")
+        )
+        .select([YEAR, MONTH, DAY, EVENT_TYPE, "count"])
+    )
+    # document.getElementById(`${eventType} - max
+    # `).textContent = formatNumber(data.max_events);
+    # document.getElementById(`${eventType} - avg - multiple
+    # `).textContent = formatNumber(data.avg_multiple);
+    # document.getElementById(`${eventType} - avg - distance
+    # `).textContent = formatNumber(data.avg_distance);
+    # document.getElementById(`${eventType} - avg - intensity
+    # `).textContent = formatNumber(data.avg_intensity);
+    eruptions_avg = df_by_event.filter(pl.col(EVENT_TYPE) == "eruption")
+    eruptions_day = df_max_in_day.filter(pl.col(EVENT_TYPE) == "eruption")
+    earthquakes_avg = df_by_event.filter(pl.col(EVENT_TYPE) == "earthquake")
+    earthquakes_day = df_max_in_day.filter(pl.col(EVENT_TYPE) == "earthquake")
+    tsunamis_avg = df_by_event.filter(pl.col(EVENT_TYPE) == "tsunami")
+    tsunamis_day = df_max_in_day.filter(pl.col(EVENT_TYPE) == "tsunami")
+    tornadoes_avg = df_by_event.filter(pl.col(EVENT_TYPE) == "tornado")
+    tornadoes_day = df_max_in_day.filter(pl.col(EVENT_TYPE) == "tornado")
+    stats = {
+        "eruption": {
+            "avg_distance": eruptions_avg.get_column("avg_distance").item() if eruptions_avg.height > 0 else None,
+            "avg_intensity": eruptions_avg.get_column("avg_intensity").item() if eruptions_avg.height > 0 else None,
+            "max_events": eruptions_day.get_column("count").max() if eruptions_day.height > 0 else None,
+            "avg_multiple": eruptions_day.get_column("count").mean() if eruptions_day.height > 0 else None
+        },
+        "tsunami": {
+            "avg_distance": tsunamis_avg.get_column("avg_distance").item() if tsunamis_avg.height > 0 else None,
+            "avg_intensity": tsunamis_avg.get_column("avg_intensity").item() if tsunamis_avg.height > 0 else None,
+            "max_events": tsunamis_day.get_column("count").max() if tsunamis_day.height > 0 else None,
+            "avg_multiple": tsunamis_day.get_column("count").mean() if tsunamis_day.height > 0 else None
+        },
+        "tornado": {
+            "avg_distance": tornadoes_avg.get_column("avg_distance").item() if tornadoes_avg.height > 0 else None,
+            "avg_intensity": tornadoes_avg.get_column("avg_intensity").item() if tornadoes_avg.height > 0 else None,
+            "max_events": tornadoes_day.get_column("count").max() if tornadoes_day.height > 0 else None,
+            "avg_multiple": tornadoes_day.get_column("count").mean() if tornadoes_day.height > 0 else None
+        },
+        "earthquake": {
+            "avg_distance": earthquakes_avg.get_column("avg_distance").item() if earthquakes_avg.height > 0 else None,
+            "avg_intensity": earthquakes_avg.get_column("avg_intensity").item() if earthquakes_avg.height > 0 else None,
+            "max_events": earthquakes_day.get_column("count").max() if earthquakes_day.height > 0 else None,
+            "avg_multiple": earthquakes_day.get_column("count").mean() if earthquakes_day.height > 0 else None
+        }
+    }
+    return jsonify(stats)
+
 
 
 if __name__ == '__main__':
