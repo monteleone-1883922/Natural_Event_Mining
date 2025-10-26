@@ -10,13 +10,25 @@ from markupsafe import Markup
 
 from plotly.subplots import make_subplots
 from sql_engine import engine
-from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, LATITUDE, LONGITUDE, REGION, NATURAL_EVENT_ID, \
-    LATITUDE_END, LONGITUDE_END, HTMLS_PATH, TEMPLATES_PATH
+from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, GEOGRAPHIC_SECTIONS, LONGITUDE, REGION, NATURAL_EVENT_ID, \
+    LATITUDE_END, LONGITUDE_END, HTMLS_PATH, TEMPLATES_PATH, EVENT_INTENSITY, INTENSITY_LABELS, INTENSITY_SECTIONS
 from subprocessing import start_map_generation
 
 app = Flask(__name__)
 
-df_events = engine.get_all_events()
+df_events = None
+
+def get_df_event(event_type):
+    if event_type == 'earthquake':
+        return engine.get_all_earthquakes()
+    elif event_type == 'tornado':
+        return engine.get_all_tornado_traces()
+    elif event_type == 'eruption':
+        return engine.get_all_eruptions()
+    elif event_type == 'tsunami':
+        return engine.get_all_tsunamis()
+
+
 
 @app.route('/')
 def index():
@@ -80,56 +92,21 @@ def temporal_analysis():
 
 @app.route('/geographic_analysis')
 def geographic_analysis():
-    geographic_sections = [
-            {
-                'title': 'Map of all events',
-                'description': 'Analyze events distribution across the world',
-                'url': '/geographic_analysis/maps/all',
-                'icon': 'globe',
-                'color': 'primary'  # Blu - neutro per "tutti"
-            },
-            {
-                'title': 'Map of earthquakes',
-                'description': 'Analyze earthquakes distribution across the world',
-                'url': '/geographic_analysis/maps/earthquake',
-                'icon': 'mountain',  # Icona più appropriata
-                'color': 'danger'  # Rosso - pericolo/impatto forte
-            },
-            {
-                'title': 'Map of eruptions',
-                'description': 'Analyze eruptions distribution across the world',
-                'url': '/geographic_analysis/maps/eruption',
-                'icon': 'fire',  # Icona vulcano
-                'color': 'warning'  # Arancione - fuoco/lava
-            },
-            {
-                'title': 'Map of tornadoes',
-                'description': 'Analyze tornadoes distribution across the world',
-                'url': '/geographic_analysis/maps/tornado',
-                'icon': 'wind',  # Icona tornado
-                'color': 'info'  # Azzurro - cielo/tempesta
-            },
-            {
-                'title': 'Map of tsunamis',
-                'description': 'Analyze tsunamis distribution across the world',
-                'url': '/geographic_analysis/maps/tsunami',
-                'icon': 'water',  # Icona onda
-                'color': 'primary'  # Blu - acqua/mare
-            },
-            {
-                'title': 'Heatmap of all events',
-                'description': 'Heatmap of all events across the world',
-                'url': '/geographic_analysis/maps/heatmap',
-                'icon': 'layer-group',  # Icona più appropriata per heatmap
-                'color': 'success'  # Verde - densità/aggregazione
-            }
-        ]
 
-    return render_template('geographic_analysis_home.html', geographic_sections=geographic_sections)
+    return render_template('geographic_analysis_home.html', geographic_sections=GEOGRAPHIC_SECTIONS)
+
+@app.route('/intensity_analysis')
+def intensity_analysis():
+    return render_template('intensity_analysis.html', intensity_sections=INTENSITY_SECTIONS)
+
 
 @app.route("/geographic_analysis/maps/<string:map>")
 def maps_page(map):
     return render_template(f'events_map_{map}.html')
+
+@app.route("/intensity_analysis/heatmaps/<string:map>")
+def heatmaps_page(map):
+    return render_template(f'intensity_map_{map}.html')
 
 
 
@@ -470,6 +447,48 @@ def api_events_by_region(region_first):
 
     return fig_to_json_response(fig, events_by_region.to_pandas(), values=fig.data[0]['values'].tolist())
 
+@app.route('/api/intensity_analysis/count_by_intensity/<string:event_type>')
+def api_count_by_intensity(event_type):
+    column = EVENT_INTENSITY[event_type]
+    intensity_df = (get_df_event(event_type).filter(
+        pl.col(column).is_not_null()).with_columns(
+        pl.col(column).cast(pl.Float64).round()
+    ).filter(pl.col(column) > 0).group_by(column).agg(pl.len().alias("count")).sort(column))
+    df_plot = intensity_df.to_pandas()
+    fig = px.bar(
+        df_plot,
+        x=column,
+        y="count",
+        orientation="v",
+        title="Frequency of intensities",
+        labels={column: INTENSITY_LABELS[event_type], 'count': 'Number of events'}
+    )
+    return fig_to_json_response(fig, df_plot, x_col=column, y_col="count")
+
+    # Crea il grafico a barre
+
+@app.route('/api/intensity_analysis/temporal_distribution/<int:normalize>')
+def api_intensity_temporal_distribution(normalize):
+
+
+    mean_intensity_by_year = engine.get_intensity_df(normalize > 0).sort([YEAR, EVENT_TYPE])
+    # del df_intensity
+    fig_px = px.line(mean_intensity_by_year.to_pandas(), x=YEAR, y='mean_intensity', color=EVENT_TYPE,
+                     title='Event mean intensity per Year',
+                     labels={'mean_intensity': 'Mean intensity', YEAR: 'Year'})
+    fig_px.update_layout(
+        template='plotly_white',
+        title_x=0.5,
+        xaxis=dict(title='Year'),
+        yaxis=dict(title='Mean intensity'),
+        legend=dict(title='Event Type - intensity type'),
+        autosize=True
+    )
+
+    return fig_to_json_response(fig_px, mean_intensity_by_year.to_pandas(), YEAR, 'mean_intensity', EVENT_TYPE)
+
+
+
 
 def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z=None, values=None):
     """
@@ -517,21 +536,9 @@ def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z
 
 
 
-
-
-
-# @app.route('/api/my-endpoint')
-# def my_chart():
-#
-#     # Elabora dati
-#     data = df_events.group_by('column').agg([...])
-#
-#     # Crea grafico Plotly (GIÀ INTERATTIVO!)
-#     fig = px.bar(data.to_pandas(), x='x', y='y')
-#
-#     return jsonify(json.loads(fig.to_json()))
-
-
 if __name__ == '__main__':
-    start_map_generation()
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        # Solo nel processo principale, non nel reloader
+        start_map_generation(engine)
+    df_events = engine.get_all_events()
     app.run(debug=True)

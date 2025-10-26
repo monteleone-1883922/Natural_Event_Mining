@@ -63,4 +63,33 @@ class SqlEngine:
     def get_all_tornado_traces(self):
         return self.query(ALL_TORNADOES)
 
+    def get_intensity_df(self, normalized):
+        earthquake_intensity = self.query(MAX_INTENSITY_EARTHQUAKE)["max"].item() if normalized else 1
+        eruption_intensity = self.query(MAX_INTENSITY_ERUPTION)["max"].item() if normalized else 1
+        tsunami_intensity = self.query(MAX_INTENSITY_TSUNAMI)["max"].item() if normalized else 1
+        tornado_intensity = self.query(MAX_INTENSITY_TORNADO)["max"].item() if normalized else 1
+        return self.query(INTENSITY_QUERY.format(earthquake_intensity=earthquake_intensity,
+                                                 eruption_intensity=eruption_intensity,
+                                                 tsunami_intensity=tsunami_intensity,
+                                                 tornado_intensity=tornado_intensity))
+
+    def get_intensity_df_maps(self, normalized):
+        earthquake_intensity = self.query(MAX_INTENSITY_EARTHQUAKE)["max"].item() if normalized else 1
+        eruption_intensity = self.query(MAX_INTENSITY_ERUPTION)["max"].item() if normalized else 1
+        tsunami_intensity = self.query(MAX_INTENSITY_TSUNAMI)["max"].item() if normalized else 1
+        tornado_intensity = self.query(MAX_INTENSITY_TORNADO)["max"].item() if normalized else 1
+        return self.query(INTENSITY_MAP_QUERY.format(earthquake_intensity=earthquake_intensity,
+                                                 eruption_intensity=eruption_intensity,
+                                                 tsunami_intensity=tsunami_intensity,
+                                                 tornado_intensity=tornado_intensity))
+
+    def get_all_earthquakes(self):
+        return self.query(ALL_EARTHQUAKES)
+
+    def get_all_eruptions(self):
+        return self.query(ALL_ERUPTIONS)
+
+    def get_all_tsunamis(self):
+        return self.query(ALL_TSUNAMIS)
+
 engine = SqlEngine(container=DEFAULT_CONTAINER)

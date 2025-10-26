@@ -209,6 +209,29 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
 
+        .navigation-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .navigation-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .navigation-card .card-body {
+            padding: 2rem;
+        }
+
+        .navigation-card i {
+            transition: transform 0.3s ease;
+        }
+
+        .navigation-card:hover i {
+            transform: scale(1.1);
+        }
+
+
         .text-gradient {
             background: linear-gradient(135deg, var(--accent) 0%, #e86b54 100%);
             -webkit-background-clip: text;
@@ -301,6 +324,11 @@
                             <li>
                                 <a class="dropdown-item {% if request.path == '/geographic_analysis' %}active{% endif %}" href="/geographic_analysis">
                                     <i class="fas fa-map-marked-alt"></i> Geographic Analysis
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == '/intensity_analysis' %}active{% endif %}" href="/intensity_analysis">
+                                    <i class="fas fa-chart-line"></i> Intensity Analysis
                                 </a>
                             </li>
                             <li>
