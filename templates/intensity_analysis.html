@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Intensity Analysis - Natural Events Dashboard{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-database"></i> Intensity Analysis</h1>
+            <p class="lead">Analysis of intensity of events</p>
+        </div>
+
+
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Number of events by intensity
+                        <form id="form_event_intensities" class="d-flex align-items-center" onsubmit="updateEventIntensity_prevent_default()">
+
+                             <label for="eventType_event_intensities" class="me-1 mb-0">EventType:</label>
+                             <select id="eventType_event_intensities" class="form-select form-select-sm me-2" style="width: 120px;">
+                                 <option value="tornado">Tornado</option>
+                                 <option value="eruption">Eruption</option>
+                                 <option value="tsunami">Tsunami</option>
+                                 <option value="earthquake">Earthquake</option>
+                             </select>
+
+                            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                        </form>
+                        <button class="btn btn-sm btn-light" onclick="updateEventIntensity()" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner -->
+                        <div id="loading-eventIntensity" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading temporal distribution...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="eventIntensity" class="chart-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Mean intensity by year
+                        <div class="form-check form-switch ms-3 me-2">
+                            <input class="form-check-input" type="checkbox" id="normalizeIntensity" onchange="toggleNormalizeIntensity()">
+                            <label class="form-check-label" for="normalizeIntensity">Normalize</label>
+                        </div>
+                        <button class="btn btn-sm btn-light" onclick="toggleNormalizeIntensity()" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner -->
+                        <div id="loading-intensity_temporal_distribution" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading Intensity temporal distribution...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="intensity_temporal_distribution" class="chart-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-compass"></i> Intensity Heatmaps Analysis Sections
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            {% for section in intensity_sections %}
+                            <div class="col-md-4">
+                                <div class="card h-100 border-{{ section.color }} navigation-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-{{ section.icon }} fa-3x text-{{ section.color }} mb-3"></i>
+                                        <h5 class="card-title">{{ section.title }}</h5>
+                                        <p class="card-text">{{ section.description }}</p>
+                                        <a href="{{ section.url }}" class="btn btn-{{ section.color }}">
+                                            View Analysis <i class="fas fa-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+    </div>
+</main>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Carica il grafico percentuali
+    loadChart(
+        '/api/intensity_analysis/count_by_intensity/tornado',
+        'eventIntensity',
+        'loading-eventIntensity'
+    );
+
+    loadChart(
+        '/api/intensity_analysis/temporal_distribution/0',
+        'intensity_temporal_distribution',
+        'loading-intensity_temporal_distribution'
+    );
+
+    function toggleNormalizeIntensity() {
+        const normalizeCheckbox = document.getElementById("normalizeIntensity").checked ? 1 : 0;
+        loadChart(
+            `/api/intensity_analysis/temporal_distribution/${normalizeCheckbox}`,
+            'intensity_temporal_distribution',
+            'loading-intensity_temporal_distribution'
+        );
+
+    }
+
+
+    function updateEventIntensity() {
+        const eventType = document.getElementById('eventType_event_intensities').value;
+        const url = `/api/intensity_analysis/count_by_intensity/${eventType}`;
+        reloadChart(url, 'eventIntensity', 'loading-eventIntensity');
+    }
+    function updateEventIntensity_prevent_default(){
+        event.preventDefault();
+        updateEventIntensity()
+    }
+
+
+</script>
+{% endblock %}
