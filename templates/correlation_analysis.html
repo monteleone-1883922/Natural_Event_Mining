@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Correlation data analysis - Natural Events Dashboard{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-database"></i> Correlation Data Analysis</h1>
+            <p class="lead">Analysis of correlations between data columns</p>
+        </div>
+
+
+
+        <!-- Heatmap -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Top countries by events
+                        <form id="eventTypeCorrelationForm" class="d-flex align-items-center" onsubmit="updateCorrelationByEventMatrix_prevent_default()">
+
+                             <label for="eventTypeCorrelation" class="me-1 mb-0">EventType:</label>
+                             <select id="eventTypeCorrelation" class="form-select form-select-sm me-2" style="width: 120px;">
+                                 <option value="all">All</option>
+                                 <option value="tornado">Tornado</option>
+                                 <option value="eruption">Eruption</option>
+                                 <option value="tsunami">Tsunami</option>
+                                 <option value="earthquake">Earthquake</option>
+                             </select>
+
+                            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                        </form>
+                        <button class="btn btn-sm btn-light" onclick="updateCorrelationByEventMatrix()" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner -->
+                        <div id="loading-correlationByEvent" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading correlations by event...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="correlationByEvent" class="chart-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+    </div>
+</main>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Carica il grafico percentuali
+    loadChart(
+        '/api/correlation_analysis/correlation_matrix/all',
+        'correlationByEvent',
+        'loading-correlationByEvent'
+    );
+
+    function updateCorrelationByEventMatrix() {
+        const eventType = document.getElementById('eventTypeCorrelation').value;
+        const url = `/api/correlation_analysis/correlation_matrix/${eventType}`;
+        reloadChart(url, 'correlationByEvent', 'loading-correlationByEvent');
+    }
+    function updateCorrelationByEventMatrix_prevent_default(){
+        event.preventDefault();
+        updateCorrelationByEventMatrix()
+    }
+
+
+</script>
+{% endblock %}

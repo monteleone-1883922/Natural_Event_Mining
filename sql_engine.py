@@ -83,6 +83,13 @@ class SqlEngine:
                                                  tsunami_intensity=tsunami_intensity,
                                                  tornado_intensity=tornado_intensity))
 
+    def get_correlation_df(self, event_type='all'):
+        additional_selection = CORRELATION_FIELDS_BY_EVENT[event_type]
+        join_condition = "" if event_type == "all" else JOIN_WITH_NATURAL_EVENT.format(event=TABLE_BY_EVENT[event_type])
+        return self.query(CORRELATION_NATURAL_EVENT_QUERY
+                          .format(additional_selection=additional_selection, join_condition=join_condition))
+
+
     def get_all_earthquakes(self):
         return self.query(ALL_EARTHQUAKES)
 

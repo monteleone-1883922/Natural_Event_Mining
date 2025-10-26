@@ -6,6 +6,7 @@ from flask import Flask, render_template, jsonify, send_file
 import plotly.express as px
 import plotly.graph_objects as go
 import polars as pl
+from utility_functions import *
 from markupsafe import Markup
 
 from plotly.subplots import make_subplots
@@ -98,6 +99,10 @@ def geographic_analysis():
 @app.route('/intensity_analysis')
 def intensity_analysis():
     return render_template('intensity_analysis.html', intensity_sections=INTENSITY_SECTIONS)
+
+@app.route('/correlation_analysis')
+def correlation_analysis():
+    return render_template('correlation_analysis.html')
 
 
 @app.route("/geographic_analysis/maps/<string:map>")
@@ -297,7 +302,7 @@ def api_event_temporal_distribution():
         autosize=True
     )
 
-    return fig_to_json_response(fig_px, df_pandas, YEAR, 'count', EVENT_TYPE)
+    return fig_to_json_response(fig_px)
 
 @app.route('/api/temporal_analysis/monthly_distribution/<string:event_type>')
 def api_monthly_distribution(event_type):
@@ -353,7 +358,7 @@ def api_monthly_distribution(event_type):
     )
 
     # Restituisci il JSON per Plotly.js
-    return fig_to_json_response(fig, pivot_pandas, MONTH, 'count', z=z_values)
+    return fig_to_json_response(fig)
 
 
 @app.route('/api/temporal_analysis/seasonality')
@@ -377,7 +382,7 @@ def api_seasonality():
                  title='Seasonal Distribution of Events',
                  labels={'count': 'Number of Events', MONTH: 'Month'},
                  barmode='group', category_orders={MONTH: ordered_months})
-    return fig_to_json_response(fig, seasonality.to_pandas(), MONTH, 'count', EVENT_TYPE)
+    return fig_to_json_response(fig)
 
 
 @app.route('/api/geographic_analysis/top_countries_by_events/<string:event_type>/<int:limit>/<int:offset>')
@@ -433,7 +438,7 @@ def api_top_countries_by_events(event_type, limit, offset):
     )
 
     # Restituisci il grafico come JSON
-    return fig_to_json_response(fig, top_countries_pandas, 'count', COUNTRY)
+    return fig_to_json_response(fig)
 
 @app.route('/api/geographic_analysis/events_by_region/<int:region_first>')
 def api_events_by_region(region_first):
@@ -445,7 +450,7 @@ def api_events_by_region(region_first):
     fig = px.sunburst(events_by_region, path=group, values='count',
                       title='Event Distribution by Region and Type')
 
-    return fig_to_json_response(fig, events_by_region.to_pandas(), values=fig.data[0]['values'].tolist())
+    return fig_to_json_response(fig)
 
 @app.route('/api/intensity_analysis/count_by_intensity/<string:event_type>')
 def api_count_by_intensity(event_type):
@@ -463,7 +468,7 @@ def api_count_by_intensity(event_type):
         title="Frequency of intensities",
         labels={column: INTENSITY_LABELS[event_type], 'count': 'Number of events'}
     )
-    return fig_to_json_response(fig, df_plot, x_col=column, y_col="count")
+    return fig_to_json_response(fig)
 
     # Crea il grafico a barre
 
@@ -485,54 +490,46 @@ def api_intensity_temporal_distribution(normalize):
         autosize=True
     )
 
-    return fig_to_json_response(fig_px, mean_intensity_by_year.to_pandas(), YEAR, 'mean_intensity', EVENT_TYPE)
+    return fig_to_json_response(fig_px)
 
 
+@app.route('/api/correlation_analysis/correlation_matrix/<string:event_type>')
+def api_correlation_matrix(event_type):
+    corr_df = spearman_corr(engine.get_correlation_df(event_type))
 
+    fig = px.imshow(
+        corr_df,
+        text_auto=True,
+        color_continuous_scale="RdBu_r",
+        zmin=-1, zmax=1,
+        title=f"Spearman Correlation Matrix for {event_type} events",
+        aspect="auto",
+    )
+    text_matrix = [
+        ["NaN" if val == -2 else val for val in row]
+        for row in fig.data[0].z
+    ]
 
-def fig_to_json_response(fig, df=None, x_col=None, y_col=None, color_col=None, z=None, values=None):
-    """
-    Converte un oggetto Plotly Figure in JSON compatibile con Plotly.js,
-    risolvendo il problema dei dati binari (bdata) per qualsiasi tipo di grafico.
+    # Aggiorna il testo nel trace principale
+    fig.data[0].text = text_matrix
+    fig.data[0].texttemplate = "%{text}"
+    fig.data[0].textfont = dict(color="black")
+    fig.data[0].hovertemplate = "%{x} vs %{y}<br>r = %{z:.2f}<extra></extra>"
 
-    Args:
-        fig: oggetto Plotly Figure (es. px.line, go.Figure, ecc.)
-        df: DataFrame Pandas/Polars usato per generare il grafico (opzionale)
-        x_col, y_col, color_col, z_col: nomi delle colonne (opzionali, per figure non standard)
+    # Personalizza il layout
+    fig.update_layout(
+        template="plotly_white",
+        margin=dict(l=60, r=60, t=80, b=60),
+        xaxis=dict(title=""),
+        yaxis=dict(title=""),
+        coloraxis_colorbar=dict(
+            title="Correlation",
+            tickvals=[-1, -0.5, 0, 0.5, 1],
+            ticks="outside"
+        ),
+    )
+    return fig_to_json_response(fig)
 
-    Returns:
-        Flask `jsonify` con i dati compatibili per Plotly.js
-    """
-
-    fig_json = json.loads(fig.to_json())
-
-    for trace in fig_json.get("data", []):
-        # --- Fix x ---
-        if isinstance(trace.get("x", []), dict) and "bdata" in trace["x"]:
-            if df is not None and x_col and color_col and "name" in trace:
-                trace["x"] = list(df[df[color_col] == trace["name"]][x_col])
-            elif df is not None and x_col:
-                trace["x"] = list(df[x_col])
-
-        # --- Fix y ---
-        if isinstance(trace.get("y", []), dict) and "bdata" in trace["y"]:
-            if df is not None and y_col and color_col and "name" in trace:
-                trace["y"] = list(df[df[color_col] == trace["name"]][y_col])
-            elif df is not None and y_col:
-                trace["y"] = list(df[y_col])
-
-        if isinstance(trace.get("values", []), dict) and "bdata" in trace["values"]:
-            if df is not None and values:
-                trace["values"] = values
-
-        # --- Fix z (es. heatmap) ---
-        if isinstance(trace.get("z", []), dict) and "bdata" in trace["z"]:
-            if df is not None and z is not None:
-                trace["z"] = list(z)
-            elif "zsrc" not in trace:  # fallback: svuota z se non specificato
-                trace["z"] = []
-
-    return jsonify(fig_json)
 
 
 

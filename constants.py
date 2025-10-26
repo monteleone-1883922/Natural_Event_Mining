@@ -10,6 +10,7 @@ TEMPLATES_PATH = "templates/"
 HTMLS_PATH = "templates/"
 EVENTS_MAPS = ["all", "earthquake", "eruption", "tornado", "tsunami", "heatmap"]
 INTENSITY_MAPS = ["earthquake", "eruption", "tsunami", "tornado", "all"]
+TABLE_BY_EVENT = {"earthquake": "earthquake", "eruption": "eruption", "tornado": "tornado_trace", "tsunami": "tsunami"}
 # SQL Queries
 ALL_EVENTS = "SELECT * FROM natural_event"
 ALL_TORNADOES = "SELECT * FROM tornado_trace"
@@ -49,6 +50,22 @@ WHERE ne.latitude IS NOT NULL AND ne.longitude IS NOT NULL AND
       ((t.f_scale IS NOT NULL AND CAST(t.f_scale AS FLOAT) <> -9.0) OR ne.event_type <> 'tornado') AND
       (ts.maxwaterheight IS NOT NULL OR ne.event_type <> 'tsunami') AND
       (er.vei IS NOT NULL OR ne.event_type <> 'eruption');"""
+CORRELATION_NATURAL_EVENT_QUERY="""select ne.latitude, ne.longitude, ne.damagemillionsdollars, ne.deaths,
+       ne.missing, ne.housesdamaged, ne.housesdestroyed, ne.injuries, ne.event_year, ne.milliondollarscropsdamage {additional_selection}
+from natural_event as ne {join_condition}"""
+JOIN_WITH_NATURAL_EVENT="join {event} as e on e.natural_event_id = ne.id "
+
+CORRELATION_FIELDS_EARTHQUAKE=",e.eqmagnitude, e.intensity, e.eqdepth "
+CORRELATION_FIELDS_ERUPTION=",cast(e.vei as float) "
+CORRELATION_FIELDS_TSUNAMI=",e.maxwaterheight, e.numdeposits, e.numrunups, e.tsintensity, e.tsmtii"
+CORRELATION_FIELDS_TORNADO=",CASE WHEN e.f_scale='-9' THEN null ELSE cast(e.f_scale as float) END, e.width, e.latitudeend, e.longitudeend, e.trace_length "
+CORRELATION_FIELDS_BY_EVENT={
+    "earthquake": CORRELATION_FIELDS_EARTHQUAKE,
+    "eruption": CORRELATION_FIELDS_ERUPTION,
+    "tsunami": CORRELATION_FIELDS_TSUNAMI,
+    "tornado": CORRELATION_FIELDS_TORNADO,
+    "all": ""
+}
 #columns
 YEAR = "event_year"
 MONTH = "event_month"
