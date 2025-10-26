@@ -51,6 +51,225 @@
             </div>
         </div>
 
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Relations between events
+
+                        <button class="btn btn-sm btn-light" onclick="reloadChart(
+                            '/api/correlation_analysis/related_events',
+                            'relatedEvents',
+                            'loading-relatedEvents'
+                        )" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner -->
+                        <div id="loading-relatedEvents" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading related events...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="relatedEvents" class="chart-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Filtro -->
+        <div class="row">
+            <div class="col-12">
+                <div class="filter-card-inline">
+                    <h5><i class="fas fa-filter"></i> Filter Settings</h5>
+                    <div class="error-message-stats" id="errorMessageStats"></div>
+                    <form id="filterFormStats" class="row g-3 align-items-end" onsubmit="update_cards()">
+                        <div class="col-md-9 col-lg-10">
+                            <label for="filterValueStats" class="form-label">Enter minimum threshold value:</label>
+                            <input type="number" class="form-control" id="filterValueStats" min="1" step="1" value="1" required>
+                            <small class="text-muted">Minimum number of events to consider for statistics calculation</small>
+                        </div>
+                        <div class="col-md-3 col-lg-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-sync-alt me-2"></i>Update
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards Eventi -->
+        <div class="row events-cards-container">
+            <div class="loading-overlay-stats" id="loadingOverlayStats">
+                <div class="spinner-stats"></div>
+            </div>
+
+            <!-- ERUPTIONS -->
+            <div class="col-lg-6 col-xxl-3 mb-3">
+                <div class="card event-card volcano-card">
+                    <div class="card-header-custom">
+                        <div class="event-icon">🌋</div>
+                        <h3 class="event-title">Eruptions</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-crown stat-icon text-warning"></i>
+                                Max events same day
+                            </div>
+                            <div class="stat-value" id="eruptions-max">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-calculator stat-icon text-primary"></i>
+                                Avg multiple events
+                            </div>
+                            <div class="stat-value" id="eruptions-avg-multiple">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-route stat-icon text-info"></i>
+                                Avg distance (km)
+                            </div>
+                            <div class="stat-value" id="eruptions-avg-distance">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-fire stat-icon text-danger"></i>
+                                Avg intensity (VEI)
+                            </div>
+                            <div class="stat-value" id="eruptions-avg-intensity">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TSUNAMI -->
+            <div class="col-lg-6 col-xxl-3 mb-3">
+                <div class="card event-card tsunami-card">
+                    <div class="card-header-custom">
+                        <div class="event-icon">🌊</div>
+                        <h3 class="event-title">Tsunami</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-crown stat-icon text-warning"></i>
+                                Max events same day
+                            </div>
+                            <div class="stat-value" id="tsunami-max">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-calculator stat-icon text-primary"></i>
+                                Avg multiple events
+                            </div>
+                            <div class="stat-value" id="tsunami-avg-multiple">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-route stat-icon text-info"></i>
+                                Avg distance (km)
+                            </div>
+                            <div class="stat-value" id="tsunami-avg-distance">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-water stat-icon text-primary"></i>
+                                Avg intensity (m)
+                            </div>
+                            <div class="stat-value" id="tsunami-avg-intensity">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TORNADO -->
+            <div class="col-lg-6 col-xxl-3 mb-3">
+                <div class="card event-card tornado-card">
+                    <div class="card-header-custom">
+                        <div class="event-icon">🌪️</div>
+                        <h3 class="event-title">Tornado</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-crown stat-icon text-warning"></i>
+                                Max events same day
+                            </div>
+                            <div class="stat-value" id="tornado-max">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-calculator stat-icon text-primary"></i>
+                                Avg multiple events
+                            </div>
+                            <div class="stat-value" id="tornado-avg-multiple">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-route stat-icon text-info"></i>
+                                Avg distance (km)
+                            </div>
+                            <div class="stat-value" id="tornado-avg-distance">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-wind stat-icon text-purple"></i>
+                                Avg intensity (EF)
+                            </div>
+                            <div class="stat-value" id="tornado-avg-intensity">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EARTHQUAKES -->
+            <div class="col-lg-6 col-xxl-3 mb-3">
+            <div class="card event-card earthquake-card">
+                <div class="card-header-custom">
+                    <div class="event-icon">🏔️</div>
+                    <h3 class="event-title">Earthquakes</h3>
+                </div>
+                <div class="card-body p-0">
+                    <div class="stat-item">
+                        <div class="stat-label">
+                            <i class="fas fa-crown stat-icon text-warning"></i>
+                            Max events same day
+                        </div>
+                        <div class="stat-value" id="earthquakes-max">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">
+                            <i class="fas fa-calculator stat-icon text-primary"></i>
+                            Avg multiple events
+                        </div>
+                        <div class="stat-value" id="earthquakes-avg-multiple">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">
+                            <i class="fas fa-route stat-icon text-info"></i>
+                            Avg distance (km)
+                        </div>
+                        <div class="stat-value" id="earthquakes-avg-distance">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">
+                            <i class="fas fa-house-damage stat-icon text-danger"></i>
+                            Avg intensity (Richter)
+                        </div>
+                        <div class="stat-value" id="earthquakes-avg-intensity">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+
 
 
     </div>
@@ -68,6 +287,14 @@
         'loading-correlationByEvent'
     );
 
+    loadChart(
+        '/api/correlation_analysis/related_events',
+        'relatedEvents',
+        'loading-relatedEvents'
+    )
+
+    fetchEventStats(200);
+
     function updateCorrelationByEventMatrix() {
         const eventType = document.getElementById('eventTypeCorrelation').value;
         const url = `/api/correlation_analysis/correlation_matrix/${eventType}`;
@@ -77,6 +304,76 @@
         event.preventDefault();
         updateCorrelationByEventMatrix()
     }
+
+    function showLoadingStats() {
+        document.getElementById('loadingOverlayStats').classList.add('active');
+    }
+
+    function hideLoadingStats() {
+        document.getElementById('loadingOverlayStats').classList.remove('active');
+    }
+
+    function showErrorStats(message) {
+        const errorDiv = document.getElementById('errorMessageStats');
+        errorDiv.textContent = message;
+        errorDiv.classList.add('active');
+        setTimeout(() => {
+            errorDiv.classList.remove('active');
+        }, 5000);
+    }
+
+    function formatNumber(num) {
+        if (num === null || num === undefined) return '-';
+        return typeof num === 'number' ? num.toLocaleString('en-US', {maximumFractionDigits: 2}) : num;
+    }
+
+    function updateCard(eventType, data) {
+        document.getElementById(`${eventType}-max`).textContent = formatNumber(data.max_events);
+        document.getElementById(`${eventType}-avg-multiple`).textContent = formatNumber(data.avg_multiple);
+        document.getElementById(`${eventType}-avg-distance`).textContent = formatNumber(data.avg_distance);
+        document.getElementById(`${eventType}-avg-intensity`).textContent = formatNumber(data.avg_intensity);
+    }
+
+    async function fetchEventStats(filterValue) {
+        showLoadingStats();
+        try {
+            const response = await fetch(`/api/correlation_analysis/stats/${filterValue}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Aggiorna tutte le card
+            if (data.eruptions) updateCard('eruption', data.eruptions);
+            if (data.tsunami) updateCard('tsunami', data.tsunami);
+            if (data.tornado) updateCard('tornado', data.tornado);
+            if (data.earthquakes) updateCard('earthquake', data.earthquakes);
+
+        } catch (error) {
+            console.error('Error fetching event stats:', error);
+            showErrorStats('Error loading data. Please try again.');
+        } finally {
+            hideLoadingStats();
+        }
+    }
+
+    // Gestione del form
+    function update_cards() {
+        event.preventDefault();
+        const filterValue = document.getElementById('filterValueStats').value;
+
+        if (filterValue && parseInt(filterValue) > 20.000) {
+            showErrorStats('Radius value must be less than or equal to 20,000 km.');
+        } else if (filterValue && parseInt(filterValue) > 0) {
+            fetchEventStats(filterValue);
+        }
+        else {
+            showErrorStats('Please enter a valid positive integer.');
+        }
+    }
+
 
 
 </script>
