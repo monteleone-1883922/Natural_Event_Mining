@@ -272,6 +272,44 @@
             </div>
         </div>
 
+        <!-- Navigation Card with Heatmap Button -->
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-12">
+                    <div class="card h-100 border-primary navigation-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-globe fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title">Heatmap of Outliers</h5>
+                            <p class="card-text">Shows the distribution of outliers across the world</p>
+
+                            <!-- Button with dynamic state -->
+                            <button
+                                id="viewHeatmapBtn"
+                                class="btn btn-secondary"
+                                onclick="openHeatmap()"
+                                disabled
+                            >
+                                <span id="btnIconContainer">
+                                    <i class="fas fa-info-circle me-2" id="btnIcon"></i>
+                                </span>
+                                <span id="btnText">Select a column to analyze</span>
+                            </button>
+
+                            <!-- Status indicator -->
+                            <div id="heatmapStatusIndicator" class="mt-3" style="display: none;">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <small class="text-muted">Generating heatmap, please wait...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </main>
 {% endblock %}
@@ -285,6 +323,122 @@
     let allOutliersData = [];
     let currentEventType = '';
     let currentColumn = '';
+    // Global variable to track polling interval
+    let heatmapPollingInterval = null;
+
+    // Function to update button based on current state
+    function updateHeatmapButtonState(state) {
+        const btn = document.getElementById('viewHeatmapBtn');
+        const btnText = document.getElementById('btnText');
+        const btnIcon = document.getElementById('btnIcon');
+        const statusIndicator = document.getElementById('heatmapStatusIndicator');
+
+        switch(state) {
+            case 'no-selection':
+                // No column selected
+                btn.disabled = true;
+                btn.className = 'btn btn-secondary';
+                btnIcon.className = 'fas fa-info-circle me-2';
+                btnText.textContent = 'Select a column to analyze';
+                statusIndicator.style.display = 'none';
+                break;
+
+            case 'generating':
+                // Heatmap is being generated
+                btn.disabled = true;
+                btn.className = 'btn btn-warning';
+                btnIcon.className = 'fas fa-spinner fa-spin me-2';
+                btnText.textContent = 'Generating heatmap...';
+                statusIndicator.style.display = 'block';
+                break;
+
+            case 'ready':
+                // Heatmap is ready
+                btn.disabled = false;
+                btn.className = 'btn btn-primary';
+                btnIcon.className = 'fas fa-map-marked-alt me-2';
+                btnText.textContent = 'View Heatmap';
+                statusIndicator.style.display = 'none';
+                break;
+
+            case 'error':
+                // Error occurred
+                btn.disabled = true;
+                btn.className = 'btn btn-danger';
+                btnIcon.className = 'fas fa-exclamation-triangle me-2';
+                btnText.textContent = 'Error generating heatmap';
+                statusIndicator.style.display = 'none';
+                break;
+        }
+    }
+
+    // Function to check if heatmap is ready
+    async function checkHeatmapReady(eventType, column) {
+        try {
+            const response = await fetch(`/api/outlier_analysis/heatmap/${eventType}/${column}/status`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.ready;
+        } catch (error) {
+            console.error('Error checking heatmap status:', error);
+            return false;
+        }
+    }
+
+    // Function to start polling for heatmap readiness
+    function startHeatmapPolling(eventType, column) {
+        // Clear any existing polling interval
+        if (heatmapPollingInterval) {
+            clearInterval(heatmapPollingInterval);
+        }
+
+        // Set button to generating state
+        updateHeatmapButtonState('generating');
+
+        let pollCount = 0;
+        const maxPolls = 120; // Maximum 2 minutes (120 * 1 second)
+
+        // Start polling every second
+        heatmapPollingInterval = setInterval(async () => {
+            pollCount++;
+
+            // Check if current selection has changed
+            if (currentEventType !== eventType || currentColumn !== column) {
+                clearInterval(heatmapPollingInterval);
+                return;
+            }
+
+            const isReady = await checkHeatmapReady(eventType, column);
+
+            if (isReady) {
+                // Heatmap is ready!
+                clearInterval(heatmapPollingInterval);
+                updateHeatmapButtonState('ready');
+                console.log('Heatmap is ready!');
+            } else if (pollCount >= maxPolls) {
+                // Timeout reached
+                clearInterval(heatmapPollingInterval);
+                updateHeatmapButtonState('error');
+                showError('Heatmap generation timeout. Please try again.');
+            }
+            // Otherwise, continue polling...
+        }, 5000); // Poll every 1 second
+    }
+
+    // Function to open heatmap in new tab
+    function openHeatmap() {
+        if (!currentEventType || !currentColumn) {
+            showError('Please select an event type and column first.');
+            return;
+        }
+
+        // Open heatmap in new tab
+        window.open(`/outlier_analysis/heatmap/${currentEventType}/${currentColumn}`, '_self');
+    }
 
     // Show/hide loading overlay
     function showLoading(elementId) {
@@ -510,6 +664,22 @@
         fetchOutliersTable(currentEventType, currentColumn, currentPage, pageSize);
     }
 
+    function onColumnSelectionChange() {
+        if (!currentEventType || !currentColumn) {
+            // No selection made
+            updateHeatmapButtonState('no-selection');
+
+            // Stop any existing polling
+            if (heatmapPollingInterval) {
+                clearInterval(heatmapPollingInterval);
+                heatmapPollingInterval = null;
+            }
+        } else {
+            // Column selected - start polling for heatmap readiness
+            startHeatmapPolling(currentEventType, currentColumn);
+        }
+    }
+
     // Update analysis (called on form submit)
     function updateOutliersAnalysis() {
         event.preventDefault();
@@ -526,6 +696,7 @@
             showError('Please select both event type and column to analyze.');
             return;
         }
+        onColumnSelectionChange();
         currentPage = 1;
 
         // Fetch both statistics and table data
@@ -549,9 +720,16 @@
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
+        updateHeatmapButtonState('no-selection');
         // Show no data messages initially
         document.getElementById('noDataStats').style.display = 'block';
         document.getElementById('noDataTable').style.display = 'block';
+    });
+
+    window.addEventListener('beforeunload', function() {
+        if (heatmapPollingInterval) {
+            clearInterval(heatmapPollingInterval);
+        }
     });
 </script>
 {% endblock %}

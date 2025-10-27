@@ -7,7 +7,7 @@ DEFAULT_SCHEMA =  "public"
 DEFAULT_CONTAINER = "database_service"
 COMPOSE_FILE_PATH = "DockerCompose.yml"
 TEMPLATES_PATH = "templates/"
-HTMLS_PATH = "templates/"
+MAPS_PATH = "maps/"
 EVENT_SPECIFIC_COLUMNS = {
     "intensity",
     "eqdepth",
@@ -259,3 +259,22 @@ INTENSITY_SECTIONS=[
                 'color': 'primary'  # Blu - acqua/mare
             }
         ]
+LEGEND_HTML_OUTLIERS_HEATMAPS = '''
+        <div style="position: fixed; 
+                    bottom: 50px; right: 50px; width: 200px; height: 120px; 
+                    background-color: white; border:2px solid grey; z-index:9999; 
+                    font-size:14px; padding: 10px; border-radius: 5px;
+                    box-shadow: 0 0 15px rgba(0,0,0,0.2);">
+            <h4 style="margin-top:0;">Outliers Legend</h4>
+            <p style="margin: 5px 0;">
+                <span style="background-color: red; width: 20px; height: 20px; 
+                             display: inline-block; margin-right: 5px; border-radius: 50%;"></span>
+                Upper Outliers
+            </p>
+            <p style="margin: 5px 0;">
+                <span style="background-color: blue; width: 20px; height: 20px; 
+                             display: inline-block; margin-right: 5px; border-radius: 50%;"></span>
+                Lower Outliers
+            </p>
+        </div>
+        '''

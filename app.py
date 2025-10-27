@@ -12,8 +12,9 @@ from markupsafe import Markup
 from plotly.subplots import make_subplots
 from sql_engine import engine
 from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, GEOGRAPHIC_SECTIONS, LONGITUDE, REGION, NATURAL_EVENT_ID, \
-    LATITUDE_END, LONGITUDE_END, HTMLS_PATH, TEMPLATES_PATH, EVENT_INTENSITY, INTENSITY_LABELS, INTENSITY_SECTIONS
-from subprocessing import start_map_generation
+    LATITUDE_END, LONGITUDE_END,  TEMPLATES_PATH, EVENT_INTENSITY, INTENSITY_LABELS, INTENSITY_SECTIONS, \
+    MAPS_PATH
+from subprocessing import start_map_generation, generate_map_outliers
 
 app = Flask(__name__)
 
@@ -117,11 +118,16 @@ def outliers_analysis():
 
 @app.route("/geographic_analysis/maps/<string:map>")
 def maps_page(map):
-    return render_template(f'events_map_{map}.html')
+    return render_template(f'{MAPS_PATH}events_maps/events_map_{map}.html')
 
 @app.route("/intensity_analysis/heatmaps/<string:map>")
 def heatmaps_page(map):
-    return render_template(f'intensity_map_{map}.html')
+    return render_template(f'{MAPS_PATH}intensiity_maps/intensity_map_{map}.html')
+
+@app.route('/outlier_analysis/heatmap/<string:event_type>/<string:column>')
+def outlier_heatmap(event_type, column):
+    return render_template(f'{MAPS_PATH}outliers_maps/outliers_heatmap_{event_type}_{column}.html')
+
 
 
 
@@ -617,6 +623,7 @@ def api_analyze_column(event_type, column):
 def api_analyze_column_table(event_type, column, page, page_size):
     df = outliers_cache["df"] if outliers_cache["event_type"] == event_type and outliers_cache["column"] == column \
         else get_outliers_analysis(engine, column, event_type, return_table=True)
+    generate_map_outliers(df, event_type, column)
     total_outliers = df.height
     if event_type != outliers_cache["event_type"] or column != outliers_cache["column"]:
         outliers_cache["df"] = df
@@ -628,6 +635,13 @@ def api_analyze_column_table(event_type, column, page, page_size):
         "total_outliers": total_outliers
     }
     return jsonify(result)
+
+@app.route('/api/outlier_analysis/heatmap/<string:event_type>/<string:column>/status')
+def api_heatmap_status(event_type, column):
+    file_path = f'{MAPS_PATH}outliers_maps/outliers_heatmap_{event_type}_{column}.html'
+    return jsonify({
+        'ready': os.path.exists(file_path)
+    })
 
 
 
