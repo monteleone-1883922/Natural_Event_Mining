@@ -8,15 +8,56 @@ DEFAULT_CONTAINER = "database_service"
 COMPOSE_FILE_PATH = "DockerCompose.yml"
 TEMPLATES_PATH = "templates/"
 HTMLS_PATH = "templates/"
+EVENT_SPECIFIC_COLUMNS = {
+    "intensity",
+    "eqdepth",
+    "eqmagnitude",
+    "eqmagms",
+    "eqmagml",
+    "eqmagmw",
+    "eqmagmb",
+    "eqmagmfa",
+    "eqmagunk",
+    "eruption",
+    "eruption_location",
+    "significant",
+    "vei",
+    "agent",
+    "eruption_status",
+    "volcano_id",
+    "f_scale",
+    "latitudeend",
+    "longitudeend",
+    "trace_length",
+    "width",
+    "alteredmagnitude",
+    "order_idx",
+    "tornado_id",
+    "eventvalidity",
+    "causecode",
+    "numdeposits",
+    "numrunups",
+    "tsintensity",
+    "oceanictsunami",
+    "maxwaterheight",
+    "tsmtii",
+    "tsmtabe",
+    "warningstatusid",
+    "cause",
+    "validity",
+    "warningstatus"
+}
 EVENTS_MAPS = ["all", "earthquake", "eruption", "tornado", "tsunami", "heatmap"]
 INTENSITY_MAPS = ["earthquake", "eruption", "tsunami", "tornado", "all"]
 TABLE_BY_EVENT = {"earthquake": "earthquake", "eruption": "eruption", "tornado": "tornado_trace", "tsunami": "tsunami"}
+MULTIPLICATOR_OUTLIERS_ANALYSIS = 1.5
 # SQL Queries
 ALL_EVENTS = "SELECT * FROM natural_event"
 ALL_TORNADOES = "SELECT * FROM tornado_trace"
 ALL_ERUPTIONS = "SELECT * FROM eruption"
 ALL_TSUNAMIS = "SELECT * FROM tsunami"
 ALL_EARTHQUAKES = "SELECT * FROM earthquake"
+FULL_EVENT_QUERY = "select {columns} from {event} as e join natural_event as ne on e.natural_event_id=ne.id {where_clause}"
 MAX_INTENSITY_EARTHQUAKE = "select max(cast(e.eqmagnitude as float)) from earthquake as e"
 MAX_INTENSITY_ERUPTION = "select max(cast(er.vei as float)) from eruption as er"
 MAX_INTENSITY_TSUNAMI = "select max(cast(ts.maxwaterheight as float)) from tsunami as ts"

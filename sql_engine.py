@@ -63,31 +63,29 @@ class SqlEngine:
     def get_all_tornado_traces(self):
         return self.query(ALL_TORNADOES)
 
-    def get_intensity_df(self, normalized):
+    def get_intensity_df(self, normalized, maps=False):
         earthquake_intensity = self.query(MAX_INTENSITY_EARTHQUAKE)["max"].item() if normalized else 1
         eruption_intensity = self.query(MAX_INTENSITY_ERUPTION)["max"].item() if normalized else 1
         tsunami_intensity = self.query(MAX_INTENSITY_TSUNAMI)["max"].item() if normalized else 1
         tornado_intensity = self.query(MAX_INTENSITY_TORNADO)["max"].item() if normalized else 1
-        return self.query(INTENSITY_QUERY.format(earthquake_intensity=earthquake_intensity,
+        return self.query((INTENSITY_MAP_QUERY if maps else INTENSITY_QUERY).format(earthquake_intensity=earthquake_intensity,
                                                  eruption_intensity=eruption_intensity,
                                                  tsunami_intensity=tsunami_intensity,
                                                  tornado_intensity=tornado_intensity))
 
-    def get_intensity_df_maps(self, normalized):
-        earthquake_intensity = self.query(MAX_INTENSITY_EARTHQUAKE)["max"].item() if normalized else 1
-        eruption_intensity = self.query(MAX_INTENSITY_ERUPTION)["max"].item() if normalized else 1
-        tsunami_intensity = self.query(MAX_INTENSITY_TSUNAMI)["max"].item() if normalized else 1
-        tornado_intensity = self.query(MAX_INTENSITY_TORNADO)["max"].item() if normalized else 1
-        return self.query(INTENSITY_MAP_QUERY.format(earthquake_intensity=earthquake_intensity,
-                                                 eruption_intensity=eruption_intensity,
-                                                 tsunami_intensity=tsunami_intensity,
-                                                 tornado_intensity=tornado_intensity))
 
     def get_correlation_df(self, event_type='all'):
         additional_selection = CORRELATION_FIELDS_BY_EVENT[event_type]
         join_condition = "" if event_type == "all" else JOIN_WITH_NATURAL_EVENT.format(event=TABLE_BY_EVENT[event_type])
         return self.query(CORRELATION_NATURAL_EVENT_QUERY
                           .format(additional_selection=additional_selection, join_condition=join_condition))
+
+    def get_from_full_event(self, event_type, columns, not_null_columns=[]):
+        where_clause = "" if not_null_columns == [] else f"WHERE {not_null_columns[0]} IS NOT NULL " + \
+                                                          "AND ".join([f"{column_not_null} IS NOT NULL" for
+                                                                       column_not_null in not_null_columns[1:]])
+        return self.query(FULL_EVENT_QUERY.format(columns=", ".join(columns),
+                                                  event=TABLE_BY_EVENT[event_type], where_clause=where_clause))
 
     def get_related_events_counts(self):
         return self.query(EVENTS_RELATED_QUERY)

@@ -88,7 +88,7 @@ def generate_maps(df_events, df_tornadoes, maps_to_generate):
 
 def generate_intensity_maps(engine: SqlEngine, maps_to_generate):
     print(f"🗺️ Starting generation intensity heat maps: {maps_to_generate}...")
-    subset_default = engine.get_intensity_df_maps(True)
+    subset_default = engine.get_intensity_df(True, maps=True)
     for event_type in maps_to_generate:
         subset = subset_default if event_type == "all" else subset_default.filter(pl.col(EVENT_TYPE) == event_type)
         m = folium.Map(location=[20, 0], zoom_start=2)

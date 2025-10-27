@@ -19,6 +19,12 @@ app = Flask(__name__)
 
 df_events = None
 
+outliers_cache = {
+    "df" : pl.DataFrame({}),
+    "event_type": "",
+    "column": ""
+}
+
 def get_df_event(event_type):
     if event_type == 'earthquake':
         return engine.get_all_earthquakes()
@@ -103,6 +109,10 @@ def intensity_analysis():
 @app.route('/correlation_analysis')
 def correlation_analysis():
     return render_template('correlation_analysis.html')
+
+@app.route('/outlier_analysis')
+def outliers_analysis():
+    return render_template('outlier_analysis.html')
 
 
 @app.route("/geographic_analysis/maps/<string:map>")
@@ -563,14 +573,6 @@ def api_stats(radius):
         )
         .select([YEAR, MONTH, DAY, EVENT_TYPE, "count"])
     )
-    # document.getElementById(`${eventType} - max
-    # `).textContent = formatNumber(data.max_events);
-    # document.getElementById(`${eventType} - avg - multiple
-    # `).textContent = formatNumber(data.avg_multiple);
-    # document.getElementById(`${eventType} - avg - distance
-    # `).textContent = formatNumber(data.avg_distance);
-    # document.getElementById(`${eventType} - avg - intensity
-    # `).textContent = formatNumber(data.avg_intensity);
     eruptions_avg = df_by_event.filter(pl.col(EVENT_TYPE) == "eruption")
     eruptions_day = df_max_in_day.filter(pl.col(EVENT_TYPE) == "eruption")
     earthquakes_avg = df_by_event.filter(pl.col(EVENT_TYPE) == "earthquake")
@@ -606,6 +608,28 @@ def api_stats(radius):
         }
     }
     return jsonify(stats)
+
+@app.route('/api/outlier_analysis/analyze_column/<string:event_type>/<string:column>')
+def api_analyze_column(event_type, column):
+    return jsonify(get_outliers_analysis(engine, column, event_type))
+
+@app.route('/api/outlier_analysis/analyze_column/<string:event_type>/<string:column>/table/<int:page>/<int:page_size>')
+def api_analyze_column_table(event_type, column, page, page_size):
+    df = outliers_cache["df"] if outliers_cache["event_type"] == event_type and outliers_cache["column"] == column \
+        else get_outliers_analysis(engine, column, event_type, return_table=True)
+    total_outliers = df.height
+    if event_type != outliers_cache["event_type"] or column != outliers_cache["column"]:
+        outliers_cache["df"] = df
+        outliers_cache["event_type"] = event_type
+        outliers_cache["column"] = column
+    df = df.slice((page-1)*page_size, page_size)
+    result = {
+        "outliers" : df.to_dicts(),
+        "total_outliers": total_outliers
+    }
+    return jsonify(result)
+
+
 
 
 

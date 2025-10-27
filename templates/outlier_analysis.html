@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}Outliers Analysis - Natural Events Dashboard{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-chart-scatter"></i> Outliers Analysis</h1>
+            <p class="lead">Statistical analysis of anomalous values in event data</p>
+        </div>
+
+        <!-- Filter Form -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-filter"></i> Analysis Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="error-message-outliers" id="errorMessageOutliers"></div>
+                        <form id="outliersFilterForm" class="row g-3 align-items-end" onsubmit="updateOutliersAnalysis()">
+                            <div class="col-md-12 col-lg-4">
+                                <label for="columnSelect" class="form-label">Column to Analyze:</label>
+                                <select id="columnSelect" class="form-select" required>
+                                    <option value="">Select a column...</option>
+                                    <option value="magnitude" data-pair='["eqmagnitude", "earthquake"]'>Magnitude-Earthquake</option>
+                                    <option value="depth" data-pair='["eqdepth", "earthquake"]'>Depth-Earthquake</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "earthquake"]'>Millions Dollars Damage-Earthquake</option>
+                                    <option value="deaths"  data-pair='["deaths", "earthquake"]'>Deaths-Earthquake</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "earthquake"]'>Houses Destroyed-Earthquake</option>
+                                    <option value="VEI" data-pair='["vei", "eruption"]'>VEI-Eruption</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "eruption"]'>Millions Dollars Damage-Eruption</option>
+                                    <option value="deaths"  data-pair='["deaths", "eruption"]'>Deaths-Eruption</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "eruption"]'>Houses Destroyed-Eruption</option>
+                                    <option value="f_scale"  data-pair='["f_scale", "tornado"]'>F Scale-Tornado</option>
+                                    <option value="width"  data-pair='["width", "tornado"]'>Width-Tornado</option>
+                                    <option value="trace_length"  data-pair='["trace_length", "tornado"]'>Trace Length-Tornado</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "tornado"]'>Millions Dollars Damage-Tornado</option>
+                                    <option value="deaths"  data-pair='["deaths", "tornado"]'>Deaths-Tornado</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "tornado"]'>Houses Destroyed-Tornado</option>
+                                    <option value="milliondollarscropsdamage"  data-pair='["milliondollarscropsdamage", "tornado"]'>Millions Dollars Crops Damage-Tornado</option>
+                                    <option value="maxwaterheight" data-pair='["maxwaterheight", "tsunami"]'>Max Water Height (m)-Tsunami</option>
+                                    <option value="numdeposits" data-pair='["numdeposits", "tsunami"]'>Num Deposits-Tsunami</option>
+                                    <option value="numrunups" data-pair='["numrunups", "tsunami"]'>Num Runup-Tsunami</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "tsunami"]'>Millions Dollars Damage-Tsunami</option>
+                                    <option value="deaths"  data-pair='["deaths", "tsunami"]'>Deaths-Tsunami</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "tsunami"]'>Houses Destroyed-Tsunami</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12 col-lg-4">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search me-2"></i>Analyze Outliers
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Card -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card position-relative">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-info-circle"></i> Statistical Summary</h5>
+                        <button class="btn btn-sm btn-light" onclick="reloadStatistics()" title="Reload statistics">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading Spinner -->
+                        <div id="loadingStats" class="loading-overlay-outliers">
+                            <div class="spinner-outliers"></div>
+                        </div>
+
+                        <!-- No Data Message -->
+                        <div id="noDataStats" class="text-center text-muted py-5" style="display: none;">
+                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                            <p>Select an event type and column to view statistics</p>
+                        </div>
+
+                        <!-- Statistics Content -->
+                        <div id="statsContent" style="display: none;">
+                            <div class="row">
+                                <!-- Basic Info -->
+                                <div class="col-md-6 col-lg-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-box-label">
+                                            <i class="fas fa-tag text-primary"></i> Event Type
+                                        </div>
+                                        <div class="stat-box-value" id="stat-event-type">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-box-label">
+                                            <i class="fas fa-columns text-info"></i> Analyzed Field
+                                        </div>
+                                        <div class="stat-box-value" id="stat-field">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-box-label">
+                                            <i class="fas fa-database text-success"></i> Total Records
+                                        </div>
+                                        <div class="stat-box-value" id="stat-total">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-box-label">
+                                            <i class="fas fa-exclamation-triangle text-danger"></i> Outliers Found
+                                        </div>
+                                        <div class="stat-box-value" id="stat-outliers">-</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="row">
+                                <!-- Quartile Info -->
+                                <div class="col-lg-6 mb-3">
+                                    <h6 class="mb-3"><i class="fas fa-chart-area"></i> Quartile Analysis</h6>
+                                    <div class="row">
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Q1 (25th percentile)</div>
+                                                <div class="small-stat-value" id="stat-q1">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Q3 (75th percentile)</div>
+                                                <div class="small-stat-value" id="stat-q3">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">IQR (Interquartile Range)</div>
+                                                <div class="small-stat-value" id="stat-iqr">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Outliers Percentage</div>
+                                                <div class="small-stat-value" id="stat-percentage">-</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bounds & Stats -->
+                                <div class="col-lg-6 mb-3">
+                                    <h6 class="mb-3"><i class="fas fa-ruler-combined"></i> Bounds & Descriptive Stats</h6>
+                                    <div class="row">
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Lower Bound</div>
+                                                <div class="small-stat-value" id="stat-lower-bound">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Upper Bound</div>
+                                                <div class="small-stat-value" id="stat-upper-bound">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Minimum Value</div>
+                                                <div class="small-stat-value" id="stat-min">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Maximum Value</div>
+                                                <div class="small-stat-value" id="stat-max">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Mean</div>
+                                                <div class="small-stat-value" id="stat-mean">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="small-stat-box">
+                                                <div class="small-stat-label">Median</div>
+                                                <div class="small-stat-value" id="stat-median">-</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Outliers Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card position-relative">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-table"></i> Detected Outliers</h5>
+                        <button class="btn btn-sm btn-light" onclick="reloadOutliersTable()" title="Reload table">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading Spinner -->
+                        <div id="loadingTable" class="loading-overlay-outliers">
+                            <div class="spinner-outliers"></div>
+                        </div>
+
+                        <!-- No Data Message -->
+                        <div id="noDataTable" class="text-center text-muted py-5" style="display: none;">
+                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                            <p>Select an event type and column to view outliers</p>
+                        </div>
+
+                        <!-- No Outliers Message -->
+                        <div id="noOutliersMessage" class="text-center text-success py-5" style="display: none;">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <p>No outliers detected for the selected criteria</p>
+                        </div>
+
+                        <!-- Table Content -->
+                        <div id="tableContent" style="display: none;">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="outliersTable">
+                                    <thead>
+                                        <tr id="tableHeaders">
+                                            <!-- Headers will be dynamically populated -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableBody">
+                                        <!-- Rows will be dynamically populated -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination Controls -->
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="pagination-info">
+                                    Showing <span id="showingFrom">0</span> to <span id="showingTo">0</span> of <span id="totalRecords">0</span> outliers
+                                </div>
+                                <nav aria-label="Outliers pagination">
+                                    <ul class="pagination mb-0" id="paginationControls">
+                                        <!-- Pagination buttons will be dynamically populated -->
+                                    </ul>
+                                </nav>
+                                <div class="page-size-selector">
+                                    <label for="pageSizeSelect" class="me-2">Records per page:</label>
+                                    <select id="pageSizeSelect" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize()">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global variables for pagination
+    let currentPage = 1;
+    let pageSize = 25;
+    let totalOutliers = 0;
+    let allOutliersData = [];
+    let currentEventType = '';
+    let currentColumn = '';
+
+    // Show/hide loading overlay
+    function showLoading(elementId) {
+        document.getElementById(elementId).style.display = 'flex';
+    }
+
+    function hideLoading(elementId) {
+        document.getElementById(elementId).style.display = 'none';
+    }
+
+    // Show error message
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessageOutliers');
+        errorDiv.textContent = message;
+        errorDiv.classList.add('active');
+        setTimeout(() => {
+            errorDiv.classList.remove('active');
+        }, 5000);
+    }
+
+    // Format number with appropriate decimals
+    function formatNumber(num, decimals = 2) {
+        if (num === null || num === undefined || num === '-') return '-';
+        return typeof num === 'number' ? num.toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        }) : num;
+    }
+
+    // Fetch statistics from API
+    async function fetchStatistics(eventType, column) {
+        showLoading('loadingStats');
+        document.getElementById('statsContent').style.display = 'none';
+        document.getElementById('noDataStats').style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/outlier_analysis/analyze_column/${eventType}/${column}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Update statistics card
+            document.getElementById('stat-event-type').textContent = data.event_type || '-';
+            document.getElementById('stat-field').textContent = data.column || '-';
+            document.getElementById('stat-total').textContent = formatNumber(data.total_elements, 0);
+            document.getElementById('stat-outliers').textContent = formatNumber(data.num_outliers, 0);
+            document.getElementById('stat-percentage').textContent = formatNumber(data.perc_outliers, 2) + '%';
+            document.getElementById('stat-q1').textContent = formatNumber(data.Q1);
+            document.getElementById('stat-q3').textContent = formatNumber(data.Q3);
+            document.getElementById('stat-iqr').textContent = formatNumber(data.IQR);
+            document.getElementById('stat-lower-bound').textContent = formatNumber(data.lower_bound);
+            document.getElementById('stat-upper-bound').textContent = formatNumber(data.upper_bound);
+            document.getElementById('stat-min').textContent = formatNumber(data.val_min);
+            document.getElementById('stat-max').textContent = formatNumber(data.val_max);
+            document.getElementById('stat-mean').textContent = formatNumber(data.mean);
+            document.getElementById('stat-median').textContent = formatNumber(data.median);
+
+            document.getElementById('statsContent').style.display = 'block';
+
+        } catch (error) {
+            console.error('Error fetching statistics:', error);
+            showError('Error loading statistics. Please try again.');
+            document.getElementById('noDataStats').style.display = 'block';
+        } finally {
+            hideLoading('loadingStats');
+        }
+    }
+
+    // Fetch outliers table from API
+    async function fetchOutliersTable(eventType, column, page, pageSize) {
+        showLoading('loadingTable');
+        document.getElementById('tableContent').style.display = 'none';
+        document.getElementById('noDataTable').style.display = 'none';
+        document.getElementById('noOutliersMessage').style.display = 'none';
+
+
+        try {
+            const response = await fetch(`/api/outlier_analysis/analyze_column/${eventType}/${column}/table/${page}/${pageSize}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            allOutliersData = data.outliers || [];
+            totalOutliers = data.total_outliers || 0;
+
+            if (totalOutliers === 0) {
+                document.getElementById('noOutliersMessage').style.display = 'block';
+                return;
+            }
+
+            // Reset to first page
+
+            renderTable();
+            document.getElementById('tableContent').style.display = 'block';
+
+        } catch (error) {
+            console.error('Error fetching outliers data:', error);
+            showError('Error loading outliers data. Please try again.');
+            document.getElementById('noDataTable').style.display = 'block';
+        } finally {
+            hideLoading('loadingTable');
+        }
+    }
+
+    // Render table with current page data
+    function renderTable() {
+        if (allOutliersData.length === 0) return;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, totalOutliers);
+        const pageData = allOutliersData;
+
+        // Get column names from first record
+        const columns = Object.keys(pageData[0]);
+
+        // Render headers
+        document.getElementById('tableHeaders').innerHTML = columns.map(col => `<th>${col}</th>`).join('');
+
+        // Render rows
+        document.getElementById('tableBody').innerHTML = pageData.map(row => {
+            const cells = columns.map(col => {
+                let value = row[col];
+                if (typeof value === 'number') {
+                    value = formatNumber(value);
+                }
+                return `<td>${value}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        // Update pagination info
+        document.getElementById('showingFrom').textContent = startIndex + 1;
+        document.getElementById('showingTo').textContent = endIndex;
+        document.getElementById('totalRecords').textContent = totalOutliers;
+
+        // Render pagination controls
+        renderPagination();
+    }
+
+    // Render pagination buttons
+    function renderPagination() {
+        const totalPages = Math.ceil(totalOutliers / pageSize);
+        let paginationHtml = '';
+
+        // Previous button
+        paginationHtml += `
+            <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+        `;
+
+        // Page numbers
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        if (startPage > 1) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="changePage(1); return false;">1</a>
+                </li>
+            `;
+            if (startPage > 2) {
+                paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHtml += `
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+                </li>
+            `;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            }
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="changePage(${totalPages}); return false;">${totalPages}</a>
+                </li>
+            `;
+        }
+
+        // Next button
+        paginationHtml += `
+            <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        `;
+
+        document.getElementById('paginationControls').innerHTML = paginationHtml;
+    }
+
+    // Change page
+    function changePage(newPage) {
+        const totalPages = Math.ceil(totalOutliers / pageSize);
+        if (newPage < 1 || newPage > totalPages) return;
+
+        currentPage = newPage;
+        fetchOutliersTable(currentEventType, currentColumn, currentPage, pageSize);
+    }
+
+    // Change page size
+    function changePageSize() {
+        pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+        currentPage = 1;
+        fetchOutliersTable(currentEventType, currentColumn, currentPage, pageSize);
+    }
+
+    // Update analysis (called on form submit)
+    function updateOutliersAnalysis() {
+        event.preventDefault();
+
+
+
+        const selection = document.getElementById('columnSelect');
+        const selectedOption = selection.options[selection.selectedIndex];
+        const pair = JSON.parse(selectedOption.getAttribute('data-pair'));
+        currentColumn = pair[0];
+        currentEventType = pair[1];
+
+        if (!currentEventType || !currentColumn) {
+            showError('Please select both event type and column to analyze.');
+            return;
+        }
+        currentPage = 1;
+
+        // Fetch both statistics and table data
+        fetchStatistics(currentEventType, currentColumn);
+        fetchOutliersTable(currentEventType, currentColumn, currentPage, pageSize);
+    }
+
+    // Reload statistics only
+    function reloadStatistics() {
+        if (currentEventType && currentColumn) {
+            fetchStatistics(currentEventType, currentColumn);
+        }
+    }
+
+    // Reload table only
+    function reloadOutliersTable() {
+        if (currentEventType && currentColumn) {
+            fetchOutliersTable(currentEventType, currentColumn, currentPage, pageSize);
+        }
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show no data messages initially
+        document.getElementById('noDataStats').style.display = 'block';
+        document.getElementById('noDataTable').style.display = 'block';
+    });
+</script>
+{% endblock %}
