@@ -73,6 +73,9 @@ class SqlEngine:
                                                  tsunami_intensity=tsunami_intensity,
                                                  tornado_intensity=tornado_intensity))
 
+    def get_missed_correlations(self, radius):
+        return self.query(MISSED_CORRELATIONS_QUERY.format(radius=radius))
+
 
     def get_correlation_df(self, event_type='all'):
         additional_selection = CORRELATION_FIELDS_BY_EVENT[event_type]

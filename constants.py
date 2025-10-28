@@ -136,6 +136,41 @@ where ne1.event_month is not null and ne1.event_day is not null and
       ne2.longitude is not null and ne2.latitude is not null and
       (ne1.event_type <> 'tornado' or ne2.event_type <> 'tornado' or
        (tr1.tornado_id <> tr2.tornado_id and tr1.tornado_id is not null and tr2.tornado_id is not null));"""
+MISSED_CORRELATIONS_QUERY="""select distinct ne1.event_type as type1, ne2.event_type as type2, ne1.event_year, ne1.event_month, ne1.event_day,
+        ne1.id as id1, ne2.id as id2,
+                            6371 * 2 * ASIN(SQRT(
+                                    POWER(SIN((RADIANS(ne1.latitude) - RADIANS(ne2.latitude)) / 2), 2) +
+                                    COS(RADIANS(ne1.latitude)) * COS(RADIANS(ne2.latitude)) *
+                                    POWER(SIN((RADIANS(ne1.longitude) - RADIANS(ne2.longitude)) / 2), 2)
+                                )) as distance, CASE
+    WHEN ne1.event_type='earthquake'
+        THEN cast(ea.eqmagnitude as float)
+    WHEN ne1.event_type='tornado'
+        THEN cast(tr1.f_scale as float)
+    WHEN ne1.event_type='tsunami'
+        THEN cast(ts.maxwaterheight as float)
+    WHEN ne1.event_type='eruption'
+        THEN cast(er.vei as float) END as intensity
+from natural_event as ne1 left join tornado_trace as tr1 on ne1.id = tr1.natural_event_id
+    left join earthquake as ea on ne1.id = ea.natural_event_id
+    left join eruption as er on ne1.id = er.natural_event_id
+    left join tsunami as ts on ne1.id = ts.natural_event_id
+    join natural_event as ne2 on ne1.id < ne2.id and
+                                 ne1.event_year = ne2.event_year and
+                                 ne1.event_type <> ne2.event_type and
+                                 ne1.event_month = ne2.event_month and
+                                 ne1.event_day = ne2.event_day and 6371 * 2 * ASIN(SQRT(
+                                    POWER(SIN((RADIANS(ne1.latitude) - RADIANS(ne2.latitude)) / 2), 2) +
+                                    COS(RADIANS(ne1.latitude)) * COS(RADIANS(ne2.latitude)) *
+                                    POWER(SIN((RADIANS(ne1.longitude) - RADIANS(ne2.longitude)) / 2), 2)
+                                )) < {radius}
+left join related_event as re1 on ne1.id = re1.event1_id and ne2.id = re1.event2_id
+left join related_event as re2 on ne1.id = re2.event2_id and ne2.id = re2.event1_id
+where ne1.event_month is not null and ne1.event_day is not null and
+      ne2.event_month is not null and ne2.event_day is not null and
+      ne1.longitude is not null and ne1.latitude is not null and
+      ne2.longitude is not null and ne2.latitude is not null and
+      re1.event1_id is null and re2.event1_id is null;"""
 JOIN_WITH_NATURAL_EVENT="join {event} as e on e.natural_event_id = ne.id "
 
 CORRELATION_FIELDS_EARTHQUAKE=",e.eqmagnitude, e.intensity, e.eqdepth "

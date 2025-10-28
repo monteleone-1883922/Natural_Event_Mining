@@ -615,6 +615,24 @@ def api_stats(radius):
     }
     return jsonify(stats)
 
+@app.route('/api/correlation_analysis/missed_relations/<int:radius>')
+def api_missed_relations(radius):
+    df = engine.get_missed_correlations(radius).group_by(["type1", "type2"]).agg(
+        pl.count().alias("count")
+    ).with_columns(
+        pl.concat_str([pl.col("type1"), pl.col("type2")], separator=" - ").alias("relation")
+    ).select(["relation", "count"])
+    fig = px.bar(
+        df.to_pandas(),
+        x="relation",
+        y="count",
+        orientation="v",
+        title="Missed Relations between different events",
+        labels={"relation": "Events Relation", 'count': 'Number of events'}
+    )
+    return fig_to_json_response(fig)
+
+
 @app.route('/api/outlier_analysis/analyze_column/<string:event_type>/<string:column>')
 def api_analyze_column(event_type, column):
     return jsonify(get_outliers_analysis(engine, column, event_type))
