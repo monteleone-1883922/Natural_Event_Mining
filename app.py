@@ -14,11 +14,12 @@ from sql_engine import engine
 from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, GEOGRAPHIC_SECTIONS, LONGITUDE, REGION, NATURAL_EVENT_ID, \
     LATITUDE_END, LONGITUDE_END,  TEMPLATES_PATH, EVENT_INTENSITY, INTENSITY_LABELS, INTENSITY_SECTIONS, \
     MAPS_PATH
-from subprocessing import start_map_generation, generate_map_outliers
+from subprocessing import start_map_generation, generate_map_outliers, generate_map_geographic_cluster
 
 app = Flask(__name__)
 
 df_events = None
+id = 0
 
 outliers_cache = {
     "df" : pl.DataFrame({}),
@@ -115,6 +116,10 @@ def correlation_analysis():
 def outliers_analysis():
     return render_template('outlier_analysis.html')
 
+@app.route('/cluster_analysis')
+def cluster_analysis():
+    return render_template('clustering_analysis.html')
+
 
 @app.route("/geographic_analysis/maps/<string:map>")
 def maps_page(map):
@@ -127,6 +132,14 @@ def heatmaps_page(map):
 @app.route('/outlier_analysis/heatmap/<string:event_type>/<string:column>')
 def outlier_heatmap(event_type, column):
     return render_template(f'{MAPS_PATH}outliers_maps/outliers_heatmap_{event_type}_{column}.html')
+
+@app.route('/cluster_analysis/geographical_cluster/<int:num_cluster>/<int:cell_size>/map')
+def geographical_clustering_map(num_cluster, cell_size):
+    global id
+    old_id = id - 1
+    return render_template(f'{MAPS_PATH}cluster_maps/geographic_map_{num_cluster}_clusters_{cell_size}_cell_size_{old_id}.html')
+
+
 
 
 
@@ -492,7 +505,7 @@ def api_count_by_intensity(event_type):
 def api_intensity_temporal_distribution(normalize):
 
 
-    mean_intensity_by_year = engine.get_intensity_df(normalize > 0).sort([YEAR, EVENT_TYPE])
+    mean_intensity_by_year = engine.get_joined_events_df(normalize > 0, "intensity").sort([YEAR, EVENT_TYPE])
     # del df_intensity
     fig_px = px.line(mean_intensity_by_year.to_pandas(), x=YEAR, y='mean_intensity', color=EVENT_TYPE,
                      title='Event mean intensity per Year',
@@ -656,7 +669,26 @@ def api_analyze_column_table(event_type, column, page, page_size):
 
 @app.route('/api/outlier_analysis/heatmap/<string:event_type>/<string:column>/status')
 def api_heatmap_status(event_type, column):
-    file_path = f'{MAPS_PATH}outliers_maps/outliers_heatmap_{event_type}_{column}.html'
+    file_path = f'{TEMPLATES_PATH}{MAPS_PATH}outliers_maps/outliers_heatmap_{event_type}_{column}.html'
+    return jsonify({
+        'ready': os.path.exists(file_path)
+    })
+
+@app.route('/api/cluster_analysis/geographical_cluster/<int:num_cluster>/<int:cell_size>')
+def api_geographical_cluster(num_cluster, cell_size):
+    global id
+    df = engine.get_joined_events_df(True, 'clustering')
+    result = prepare_geo_clustering_data(df, num_cluster, cell_size)
+    clustered_df = result.pop("df_clustered")
+    generate_map_geographic_cluster(clustered_df, num_cluster, cell_size, id)
+    id += 1
+    return jsonify(result)
+
+@app.route('/api/cluster_analysis/geographical_cluster/<int:num_cluster>/<int:cell_size>/status')
+def api_geographical_cluster_map_status(num_cluster, cell_size):
+    global id
+    old_id = id - 1
+    file_path = f'{TEMPLATES_PATH}{MAPS_PATH}cluster_maps/geographic_map_{num_cluster}_clusters_{cell_size}_cell_size_{old_id}.html'
     return jsonify({
         'ready': os.path.exists(file_path)
     })

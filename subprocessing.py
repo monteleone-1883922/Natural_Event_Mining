@@ -7,8 +7,12 @@ import polars as pl
 from folium.plugins import HeatMap, MarkerCluster, AntPath
 from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, LATITUDE, LONGITUDE, REGION, NATURAL_EVENT_ID, \
     LATITUDE_END, LONGITUDE_END, EVENTS_MAPS, INTENSITY_MAPS, INTENSITY, MAPS_PATH, \
-    LEGEND_HTML_OUTLIERS_HEATMAPS
+    LEGEND_HTML_OUTLIERS_HEATMAPS, TEMPLATES_PATH
 from sql_engine import SqlEngine
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+
+
 
 def print_progress_bar(percentuale, lunghezza_barra=20):
     blocchi_compilati = int(lunghezza_barra * percentuale)
@@ -71,7 +75,7 @@ def generate_maps(df_events, df_tornadoes, maps_to_generate):
                     popup="End location"
                 ).add_to(marker_cluster)
 
-        filename = f'{MAPS_PATH}events_maps/events_map_{event_type}.html'
+        filename = f'{TEMPLATES_PATH}{MAPS_PATH}events_maps/events_map_{event_type}.html'
         print(f"💾 Saving {filename} ...")
         mappa.save(filename)
         print(f"✅ {filename} saved!")
@@ -88,12 +92,82 @@ def generate_maps(df_events, df_tornadoes, maps_to_generate):
     print("🎉 Finished generating maps!")
 
 
+def generate_cluster_map(df_clustered: pl.DataFrame, n_clusters: int, cell_size: int, id: int):
+    """
+    Genera una mappa Folium con punti colorati per cluster e dimensione proporzionale all'intensità.
+    """
+
+    # Colori per i cluster
+    cmap = cm.get_cmap('tab10', n_clusters)
+    cluster_colors = [mcolors.to_hex(cmap(i)) for i in range(n_clusters)]
+
+    # Crea mappa centrata sul centro medio
+    center_lat = df_clustered["lat_grid"].mean()
+    center_lon = df_clustered["lon_grid"].mean()
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=2, tiles='cartodb positron')
+
+    # Usa MarkerCluster per performance migliori
+    marker_cluster = MarkerCluster().add_to(m)
+
+    # Aggiungi un punto per ciascun evento
+    for row in df_clustered.iter_rows(named=True):
+        cluster_id = int(row.get("cluster", 0))
+        color = cluster_colors[cluster_id % len(cluster_colors)]
+
+        intensity = float(row.get("intensity", 0) or 0)
+        radius = max(3.0, min(15.0, intensity * 2.0))  # scala proporzionale all’intensità
+
+        event_type = row.get(EVENT_TYPE, "unknown")
+        deaths = row.get("deaths", 0)
+        damage = row.get("damagemillionsdollars", 0)
+        houses = row.get("housesdestroyed", 0)
+
+        popup_html = f"""
+        <b>Cluster:</b> {cluster_id}<br>
+        <b>Event Type:</b> {event_type}<br>
+        <b>Intensity:</b> {intensity:.2f}<br>
+        <b>Deaths:</b> {deaths}<br>
+        <b>Damage (M$):</b> {damage}<br>
+        <b>Houses Destroyed:</b> {houses}
+        """
+
+        folium.CircleMarker(
+            location=[row["lat_grid"], row["lon_grid"]],
+            radius=radius,
+            color=color,
+            fill=True,
+            fill_opacity=0.6,
+            popup=folium.Popup(popup_html, max_width=250)
+        ).add_to(marker_cluster)
+
+    # Aggiungi una legenda
+    legend_html = """
+    <div style="
+        position: fixed;
+        bottom: 20px; left: 20px; width: 220px;
+        background-color: white; border:2px solid grey; z-index:9999; font-size:14px;
+        padding: 10px; border-radius: 8px;">
+        <b>Cluster Colors</b><br>
+    """
+    for i, color in enumerate(cluster_colors):
+        legend_html += f'<i style="background:{color};width:15px;height:15px;float:left;margin-right:5px;opacity:0.8;"></i> Cluster {i}<br>'
+    legend_html += "</div>"
+
+    m.get_root().html.add_child(folium.Element(legend_html))
+
+    # Salva la mappa in HTML
+    filename = f'{TEMPLATES_PATH}{MAPS_PATH}cluster_maps/geographic_map_{n_clusters}_clusters_{cell_size}_cell_size_{id}.html'
+    print(f"💾 Saving {filename} ...")
+    m.save(filename)
+    print(f"✅ {filename} saved!")
+
+    return
 
 
 
 def generate_intensity_maps(engine: SqlEngine, maps_to_generate):
     print(f"🗺️ Starting generation intensity heat maps: {maps_to_generate}...")
-    subset_default = engine.get_intensity_df(True, maps=True)
+    subset_default = engine.get_joined_events_df(True, "intensity_map")
     for event_type in maps_to_generate:
         subset = subset_default if event_type == "all" else subset_default.filter(pl.col(EVENT_TYPE) == event_type)
         m = folium.Map(location=[20, 0], zoom_start=2)
@@ -106,10 +180,11 @@ def generate_intensity_maps(engine: SqlEngine, maps_to_generate):
                 blur=20,
                 max_zoom=13,
                 gradient={0.0: 'blue', 0.5: 'yellow', 1.0: 'red'}).add_to(m)
-        filename = f"{MAPS_PATH}intensity_maps/intensity_map_{event_type}.html"
+        filename = f"{TEMPLATES_PATH}{MAPS_PATH}intensity_maps/intensity_map_{event_type}.html"
         print(f"💾 Saving {filename} ...")
         m.save(filename)
         print(f"✅ {filename} saved!")
+        return
 
 
 def create_outliers_heatmap(df_outliers, map_name):
@@ -242,7 +317,7 @@ def create_outliers_heatmap(df_outliers, map_name):
         m.get_root().html.add_child(folium.Element(LEGEND_HTML_OUTLIERS_HEATMAPS))
 
     # Save the map to the templates folder
-    output_path = f'{MAPS_PATH}outliers_maps/{map_name}'
+    output_path = f'{TEMPLATES_PATH}{MAPS_PATH}outliers_maps/{map_name}'
     print(f"saving {output_path} ...")
     m.save(output_path)
     print(f"✅ Saved {output_path}")
@@ -251,8 +326,8 @@ def create_outliers_heatmap(df_outliers, map_name):
 def start_map_generation(engine: SqlEngine):
     """Avvia un processo separato per generare le mappe, se non esistono già."""
 
-    missing = [f for f in EVENTS_MAPS if not os.path.exists(f"{MAPS_PATH}events_maps/events_map_{f}.html")]
-    missing_heatmaps = [f for f in INTENSITY_MAPS if not os.path.exists(f"{MAPS_PATH}intensity_maps/intensity_map_{f}.html")]
+    missing = [f for f in EVENTS_MAPS if not os.path.exists(f"{TEMPLATES_PATH}{MAPS_PATH}events_maps/events_map_{f}.html")]
+    missing_heatmaps = [f for f in INTENSITY_MAPS if not os.path.exists(f"{TEMPLATES_PATH}{MAPS_PATH}intensity_maps/intensity_map_{f}.html")]
 
     if missing:
         print(f"🧩 Missing some maps: {missing}")
@@ -269,10 +344,16 @@ def start_map_generation(engine: SqlEngine):
 
 def generate_map_outliers(df_outliers, event_type, column):
     map_name = f"outliers_heatmap_{event_type}_{column}.html"
-    if os.path.exists(os.path.join(MAPS_PATH, f"outliers_maps/{map_name}")):
+    if os.path.exists(f"{TEMPLATES_PATH}{MAPS_PATH}outliers_maps/{map_name}"):
         print(f"✅ Outliers heatmap for {event_type} and column '{column}' already exists.")
         return
     thread = Thread(target=create_outliers_heatmap, args=(df_outliers.clone(), map_name))
     thread.daemon = True
     thread.start()
     print(f"🚀 Outliers heatmap for {event_type} and column '{column}' started in background.")
+
+def generate_map_geographic_cluster(df_clustered, n_clusters, cell_size, id):
+    thread = Thread(target=generate_cluster_map, args=(df_clustered, n_clusters, cell_size, id))
+    thread.daemon = True
+    thread.start()
+    print(f"🚀 Cluster map for {n_clusters} clusters and cell size '{cell_size}' started in background.")

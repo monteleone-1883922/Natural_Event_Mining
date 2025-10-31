@@ -99,6 +99,7 @@ from related_event as re join natural_event as ne1 on re.event1_id = ne1.id
     join natural_event as ne2 on re.event2_id = ne2.id
 where ne1.event_type <> 'tornado'
 group by ne1.event_type, ne2.event_type;"""
+
 # ne1.longitude as event1_, ne1.latitude, ne2.longitude, ne2.latitude,
 #        ne1.id, ne2.id, ne1.event_timestamp, ne2.event_timestamp,
 #        tr1.tornado_id as tornado1_id, tr2.tornado_id as tornado2_id,
@@ -171,12 +172,33 @@ where ne1.event_month is not null and ne1.event_day is not null and
       ne1.longitude is not null and ne1.latitude is not null and
       ne2.longitude is not null and ne2.latitude is not null and
       re1.event1_id is null and re2.event1_id is null;"""
+COMPLETE_EVENTS_CLUSTERING_QUERY="""select distinct ne.event_type, ne.latitude, ne.longitude, ne.deaths, ne.damagemillionsdollars, ne.housesdestroyed,
+                ne.event_year, ne.event_month, ne.event_day,
+    CASE WHEN ne.event_type='earthquake'
+        THEN cast(ea.eqmagnitude as float) / {earthquake_intensity}
+    WHEN ne.event_type='tornado'
+        THEN CASE WHEN cast(tr.f_scale as float) = -9.0 THEN null ELSE cast(tr.f_scale as float) / {tornado_intensity} END
+    WHEN ne.event_type='tsunami'
+        THEN cast(ts.maxwaterheight as float) / {tsunami_intensity}
+    WHEN ne.event_type='eruption'
+        THEN cast(er.vei as float) / {eruption_intensity} END as intensity 
+from natural_event as ne left join tornado_trace as tr on ne.id = tr.natural_event_id
+    left join earthquake as ea on ne.id = ea.natural_event_id
+    left join eruption as er on ne.id = er.natural_event_id
+    left join tsunami as ts on ne.id = ts.natural_event_id
+where ne.event_month is not null and ne.event_day is not null and
+      ne.longitude is not null and ne.latitude is not null;"""
 JOIN_WITH_NATURAL_EVENT="join {event} as e on e.natural_event_id = ne.id "
 
 CORRELATION_FIELDS_EARTHQUAKE=",e.eqmagnitude, e.intensity, e.eqdepth "
 CORRELATION_FIELDS_ERUPTION=",cast(e.vei as float) "
 CORRELATION_FIELDS_TSUNAMI=",e.maxwaterheight, e.numdeposits, e.numrunups, e.tsintensity, e.tsmtii"
 CORRELATION_FIELDS_TORNADO=",CASE WHEN e.f_scale='-9' THEN null ELSE cast(e.f_scale as float) END, e.width, e.latitudeend, e.longitudeend, e.trace_length "
+JOINED_EVENT_QUERIES={
+    "intensity": INTENSITY_QUERY,
+    "intensity_map": INTENSITY_MAP_QUERY,
+    "clustering": COMPLETE_EVENTS_CLUSTERING_QUERY
+}
 CORRELATION_FIELDS_BY_EVENT={
     "earthquake": CORRELATION_FIELDS_EARTHQUAKE,
     "eruption": CORRELATION_FIELDS_ERUPTION,

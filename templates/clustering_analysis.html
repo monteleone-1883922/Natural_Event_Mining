@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+
+{% block title %}Clustering Analysis - Natural Events Dashboard{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="container-fluid px-4">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-database"></i> Clustering Analysis</h1>
+            <p class="lead">Analysis of data made using clustering</p>
+        </div>
+
+        <ul class="nav clustering-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active"
+                        id="geographical-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#geographical"
+                        type="button"
+                        role="tab">
+                    <i class="fas fa-globe"></i> Geographical Clustering
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        id="spatiotemporal-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#spatiotemporal"
+                        type="button"
+                        role="tab">
+                    <i class="fas fa-clock"></i> Spatial-Temporal Clustering
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        id="countries-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#countries"
+                        type="button"
+                        role="tab">
+                    <i class="fas fa-flag"></i> Clustering by Countries
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+
+            <!-- ============================================
+                 TAB 1: GEOGRAPHICAL CLUSTERING
+                 ============================================ -->
+            <div class="tab-pane fade show active"
+                 id="geographical"
+                 role="tabpanel"
+                 aria-labelledby="geographical-tab">
+
+                <!-- Controls Section -->
+                <div class="clustering-controls">
+                    <h5 class="mb-3">
+                        <i class="fas fa-sliders-h"></i> Clustering Parameters
+                    </h5>
+                    <form id="geoClusteringForm" class="settings-form" onsubmit="exec_geographical_clustering()">
+                        <div class="form-group-inline">
+                            <label for="nClustersGeo">
+                                Number of Clusters
+                                <span class="info-tooltip"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      title="number of clusters to generate. suggested range: 5-8">
+                                    ?
+                                </span>
+                            </label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="nClustersGeo"
+                                   name="n_clusters"
+                                   min="2"
+                                   max="15"
+                                   value="6"
+                                   required>
+                        </div>
+
+                        <div class="form-group-inline">
+                            <label for="gridSizeGeo">
+                                Grid Size
+                                <span class="info-tooltip"
+                                      data-bs-toggle="tooltip"
+                                      title="Cell size in degrees, e.g. 2° ≈ 220km">
+                                    ?
+                                </span>
+                            </label>
+                            <select class="form-select" id="gridSizeGeo" name="grid_size">
+                                <option value="1">1° (~111 km)</option>
+                                <option value="2" selected>2° (~220 km)</option>
+                                <option value="3">3° (~330 km)</option>
+                                <option value="5">5° (~550 km)</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-analyze">
+                            <i class="fas fa-chart-network me-2"></i>
+                            Execute Clustering
+                        </button>
+
+                        <button type="button" class="btn btn-outline-secondary" id="resetGeoBtn">
+                            <i class="fas fa-redo me-2"></i>
+                            Reset
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Loading State -->
+                <div id="geoLoadingState" class="loading" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="loading-text">Processing clustering analysis...</p>
+                </div>
+
+                <!-- Results Section -->
+                <div id="geoResults" style="display: none;">
+
+                    <!-- Summary Statistics Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-info-circle"></i> Clustering Summary
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-database stat-icon"></i>
+                                            Total Events
+                                        </div>
+                                        <div class="stat-value" id="totalEvents">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-layer-group stat-icon"></i>
+                                            Number of Clusters
+                                        </div>
+                                        <div class="stat-value" id="numClusters">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-chart-line stat-icon"></i>
+                                            Silhouette Score
+                                        </div>
+                                        <div class="stat-value" id="silhouetteScore">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cluster Details Cards -->
+                    <div class="row mb-4" id="clusterCardsContainer">
+                        <!-- Le card dei cluster verranno inserite dinamicamente qui -->
+                    </div>
+
+
+                    <!-- Heatmap: Cluster vs Features -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-th"></i> Cluster Features Heatmap
+                        </div>
+                        <div class="card-body">
+                            <div id="heatmapChart" class="chart-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Row with two charts -->
+                    <div class="row mb-4">
+                        <!-- Histogram: Events per Cluster -->
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-chart-bar"></i> Events per Cluster
+                                </div>
+                                <div class="card-body">
+                                    <div id="eventsPerClusterChart" class="chart-container"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Histogram: Events per Type per Cluster -->
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-chart-column"></i> Event Types Distribution per Cluster
+                                </div>
+                                <div class="card-body">
+                                    <div id="eventsPerTypeChart" class="chart-container"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-12">
+                    <div class="card h-100 border-primary navigation-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-globe fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title">Map of clustered events</h5>
+                            <p class="card-text">Shows the distribution of clusters across the world</p>
+
+                            <!-- Button with dynamic state -->
+                            <button
+                                id="viewMapGeoClustersButton"
+                                class="btn btn-secondary"
+                                onclick="openGeoClusterMap()"
+                                disabled
+                            >
+                                <span id="btnIconContainer">
+                                    <i class="fas fa-info-circle me-2" id="btnIcon"></i>
+                                </span>
+                                <span id="btnText">First choose clustering params</span>
+                            </button>
+
+                            <!-- Status indicator -->
+                            <div id="geoClusteringMapIndicator" class="mt-3" style="display: none;">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <small class="text-muted">Generating clustering map, please wait...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            <!-- ============================================
+                 TAB 2: SPATIOTEMPORAL CLUSTERING
+                 ============================================ -->
+            <div class="tab-pane fade"
+                 id="spatiotemporal"
+                 role="tabpanel"
+                 aria-labelledby="spatiotemporal-tab">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Tab Spazio-Temporale - In sviluppo
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let geoClusteringMapPollingInterval = null;
+const geoForm = document.getElementById('geoClusteringForm');
+const loadingState = document.getElementById('geoLoadingState');
+const resultsSection = document.getElementById('geoResults');
+const resetBtn = document.getElementById('resetGeoBtn');
+let currentNumClusters = null;
+let currentCellSize = null;
+
+// Initialize tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+
+    // Form submit handler
+function exec_geographical_clustering() {
+    event.preventDefault();
+
+    const num_clusters = document.getElementById('nClustersGeo').value;
+    const grid_size = document.getElementById('gridSizeGeo').value;
+    currentCellSize = grid_size;
+    currentNumClusters = num_clusters;
+
+    // Show loading state
+    loadingState.style.display = 'flex';
+    resultsSection.style.display = 'none';
+
+    // API call
+    fetch(`/api/cluster_analysis/geographical_cluster/${num_clusters}/${grid_size}`)
+        .then(response => response.json())
+        .then(data => {
+            // Hide loading
+            loadingState.style.display = 'none';
+            resultsSection.style.display = 'block';
+
+            // Populate summary statistics
+            document.getElementById('totalEvents').textContent = data.summary.total_events;
+            document.getElementById('numClusters').textContent = data.summary.num_clusters;
+            document.getElementById('silhouetteScore').textContent = data.summary.silhouette_score.toFixed(3);
+
+            // Generate cluster cards
+            generateClusterCards(data.clusters);
+            onGeographicClusterSelectionChange()
+
+            // Render Plotly charts
+
+            Plotly.newPlot('heatmapChart', data.plots.heatmap.data, data.plots.heatmap.layout, {responsive: true});
+            Plotly.newPlot('eventsPerClusterChart', data.plots.events_per_cluster.data, data.plots.events_per_cluster.layout, {responsive: true});
+            Plotly.newPlot('eventsPerTypeChart', data.plots.events_per_type.data, data.plots.events_per_type.layout, {responsive: true});
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            loadingState.style.display = 'none';
+            alert('Error performing clustering analysis. Please try again.');
+        });
+}
+
+    // Reset button handler
+resetBtn.addEventListener('click', function() {
+    geoForm.reset();
+    resultsSection.style.display = 'none';
+});
+
+function onGeographicClusterSelectionChange() {
+        if (!currentNumClusters || !currentCellSize) {
+            // No selection made
+            updateGeoClusteringMapButtonState('no-selection');
+
+            // Stop any existing polling
+            if (geoClusteringMapPollingInterval) {
+                clearInterval(geoClusteringMapPollingInterval);
+                geoClusteringMapPollingInterval = null;
+            }
+        } else {
+            // Column selected - start polling for heatmap readiness
+            startGeoClusteringMapPolling(currentNumClusters, currentCellSize);
+        }
+    }
+
+    // Function to generate cluster cards
+function generateClusterCards(clusters) {
+    const container = document.getElementById('clusterCardsContainer');
+    container.innerHTML = '';
+
+    clusters.forEach((cluster, index) => {
+        const card = document.createElement('div');
+        card.className = 'col-md-6 col-lg-4 mb-4'; // Card più larghe per contenere più informazioni
+        card.innerHTML = `
+            <div class="card h-100 cluster-card" style="border-left: 4px solid ${cluster.color}">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-circle me-2" style="color: ${cluster.color}"></i>
+                        ${cluster.name}
+                    </h5>
+                    <hr>
+
+                    <div class="row">
+                        <!-- Statistiche Base -->
+                        <div class="col-6">
+                            <p class="mb-1"><small><strong>Events:</strong> ${cluster.num_events}</small></p>
+                            <p class="mb-1"><small><strong>Cells:</strong> ${cluster.num_cells}</small></p>
+                        </div>
+
+                        <!-- Intensità -->
+                        <div class="col-6">
+                            <p class="mb-1"><small><strong>Avg Intensity:</strong> ${cluster.mean_intensity?.toFixed(2)}</small></p>
+                            <p class="mb-1"><small><strong>Std Intensity:</strong> ${cluster.std_intensity?.toFixed(2)}</small></p>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <!-- Morti -->
+                        <div class="col-6">
+                            <p class="mb-1"><small><strong>Total Deaths:</strong> ${cluster.total_deaths}</small></p>
+                            <p class="mb-1"><small><strong>Mean Deaths:</strong> ${cluster.mean_deaths?.toFixed(2)}</small></p>
+                            <p class="mb-1"><small><strong>Std Deaths:</strong> ${cluster.std_deaths?.toFixed(2)}</small></p>
+                        </div>
+
+                        <!-- Danni -->
+                        <div class="col-6">
+                            <p class="mb-1"><small><strong>Total Damage:</strong> ${cluster.total_damage}</small></p>
+                            <p class="mb-1"><small><strong>Mean Damage:</strong> ${cluster.mean_damage?.toFixed(2)}</small></p>
+                            <p class="mb-1"><small><strong>Std Damage:</strong> ${cluster.std_damage?.toFixed(2)}</small></p>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <!-- Case Distrutte -->
+                        <div class="col-6">
+                            <p class="mb-1"><small><strong>Total Houses Destroyed:</strong> ${cluster.total_houses_destroyed}</small></p>
+                            <p class="mb-1"><small><strong>Mean Houses:</strong> ${cluster.mean_houses_destroyed?.toFixed(2)}</small></p>
+                            <p class="mb-1"><small><strong>Std Houses:</strong> ${cluster.std_houses_destroyed?.toFixed(2)}</small></p>
+                        </div>
+
+                        <!-- Percentuali Eventi -->
+                        <div class="col-6">
+                            <p class="mb-1"><small><strong>Earthquakes:</strong> ${(cluster.pct_earthquakes * 100)?.toFixed(1)}%</small></p>
+                            <p class="mb-1"><small><strong>Tsunami:</strong> ${(cluster.pct_tsunami * 100)?.toFixed(1)}%</small></p>
+                            <p class="mb-1"><small><strong>Eruptions:</strong> ${(cluster.pct_eruptions * 100)?.toFixed(1)}%</small></p>
+                            <p class="mb-1"><small><strong>Tornadoes:</strong> ${(cluster.pct_tornadoes * 100)?.toFixed(1)}%</small></p>
+                        </div>
+                    </div>
+
+                    <!-- Coordinate Centroide -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <p class="mb-0"><small><strong>Centroid:</strong> ${cluster.centroid.lat?.toFixed(2)}°, ${cluster.centroid.lon?.toFixed(2)}°</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Function to update button based on current state
+function updateGeoClusteringMapButtonState(state) {
+    const btn = document.getElementById('viewMapGeoClustersButton');
+    const btnText = document.getElementById('btnText');
+    const btnIcon = document.getElementById('btnIcon');
+    const statusIndicator = document.getElementById('geoClusteringMapIndicator');
+
+    switch(state) {
+        case 'no-selection':
+            // No column selected
+            btn.disabled = true;
+            btn.className = 'btn btn-secondary';
+            btnIcon.className = 'fas fa-info-circle me-2';
+            btnText.textContent = 'Select a column to analyze';
+            statusIndicator.style.display = 'none';
+            break;
+
+        case 'generating':
+            // Heatmap is being generated
+            btn.disabled = true;
+            btn.className = 'btn btn-warning';
+            btnIcon.className = 'fas fa-spinner fa-spin me-2';
+            btnText.textContent = 'Generating Geographic clustering map...';
+            statusIndicator.style.display = 'block';
+            break;
+
+        case 'ready':
+            // Heatmap is ready
+            btn.disabled = false;
+            btn.className = 'btn btn-primary';
+            btnIcon.className = 'fas fa-map-marked-alt me-2';
+            btnText.textContent = 'View Geographic Clustering Map';
+            statusIndicator.style.display = 'none';
+            break;
+
+        case 'error':
+            // Error occurred
+            btn.disabled = true;
+            btn.className = 'btn btn-danger';
+            btnIcon.className = 'fas fa-exclamation-triangle me-2';
+            btnText.textContent = 'Error generating geographic clustering map';
+            statusIndicator.style.display = 'none';
+            break;
+    }
+}
+
+// Function to check if heatmap is ready
+async function checkGeoClusterMapReady(n_clusters, cell_size) {
+    try {
+        const response = await fetch(`/api/cluster_analysis/geographical_cluster/${n_clusters}/${cell_size}/status`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.ready;
+    } catch (error) {
+        console.error('Error checking geographic clustering map status:', error);
+        return false;
+    }
+}
+
+// Function to start polling for heatmap readiness
+function startGeoClusteringMapPolling(n_clusters, cell_size) {
+    // Clear any existing polling interval
+    if (geoClusteringMapPollingInterval) {
+        clearInterval(geoClusteringMapPollingInterval);
+    }
+
+    // Set button to generating state
+    updateGeoClusteringMapButtonState('generating');
+
+    let pollCount = 0;
+    const maxPolls = 120; // Maximum 2 minutes (120 * 1 second)
+
+    // Start polling every second
+    geoClusteringMapPollingInterval = setInterval(async () => {
+        pollCount++;
+
+        // Check if current selection has changed
+        if (currentNumClusters !== n_clusters || currentCellSize !== cell_size) {
+            clearInterval(geoClusteringMapPollingInterval);
+            return;
+        }
+
+        const isReady = await checkGeoClusterMapReady(n_clusters, cell_size);
+
+        if (isReady) {
+            // Heatmap is ready!
+            clearInterval(geoClusteringMapPollingInterval);
+            updateGeoClusteringMapButtonState('ready');
+            console.log('GeoClusteringMap is ready!');
+        } else if (pollCount >= maxPolls) {
+            // Timeout reached
+            clearInterval(geoClusteringMapPollingInterval);
+            updateHeatmapButtonState('error');
+            showError('geoClusteringMap generation timeout. Please try again.');
+        }
+        // Otherwise, continue polling...
+    }, 30000); // Poll every 40 second
+}
+
+// Function to open heatmap in new tab
+function openGeoClusterMap() {
+        if (!currentNumClusters || !currentCellSize) {
+            showError('Please select an num clusters and cell size first');
+            return;
+        }
+
+        // Open heatmap in new tab
+        window.open(`/cluster_analysis/geographical_cluster/${currentNumClusters}/${currentCellSize}/map`, '_self');
+    }
+
+</script>
+{% endblock %}
