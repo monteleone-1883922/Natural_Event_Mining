@@ -173,7 +173,7 @@ where ne1.event_month is not null and ne1.event_day is not null and
       ne2.longitude is not null and ne2.latitude is not null and
       re1.event1_id is null and re2.event1_id is null;"""
 COMPLETE_EVENTS_CLUSTERING_QUERY="""select distinct ne.event_type, ne.latitude, ne.longitude, ne.deaths, ne.damagemillionsdollars, ne.housesdestroyed,
-                ne.event_year, ne.event_month, ne.event_day,
+                ne.event_year, ne.event_month, ne.event_day, ne.country,
     CASE WHEN ne.event_type='earthquake'
         THEN cast(ea.eqmagnitude as float) / {earthquake_intensity}
     WHEN ne.event_type='tornado'

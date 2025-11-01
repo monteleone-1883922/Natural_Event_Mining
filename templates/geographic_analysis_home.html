@@ -57,6 +57,53 @@
         </div>
 
         <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-table"></i> Country Statistics</span>
+                        <button class="btn btn-sm btn-light" onclick="loadCountryStats()" title="Reload">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="loading-countryStats" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading country statistics...</div>
+                        </div>
+
+                        <div id="countryStatsContainer" style="display: none;">
+                            <table id="countryStatsTable" class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Country</th>
+                                        <th>Total Events</th>
+                                        <th>Events/Year</th>
+                                        <th>Total Deaths</th>
+                                        <th>Avg Deaths</th>
+                                        <th>Total Damage ($M)</th>
+                                        <th>Avg Damage ($M)</th>
+                                        <th>Total Destroyed Houses</th>
+                                        <th>Avg Intensity</th>
+                                        <th>Max Intensity</th>
+                                        <th>Percentage Earthquakes</th>
+                                        <th>Percentage Tornadoes</th>
+                                        <th>Percentage Eruptions</th>
+                                        <th>Percentage Tsunamis</th>
+                                        <th>Events Frequency</th>
+                                        <th>Event Types</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
             <div class="col-6 mb-4">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -169,6 +216,7 @@
         'regionalEvents_type',
         'loading-regionalEvents_type'
     );
+    loadCountryStats();
 
     function updateCountries() {
         const limit = document.getElementById('limit').value;
@@ -181,6 +229,63 @@
         event.preventDefault();
         updateCountries()
     }
+
+    let countryTable = null;
+
+function loadCountryStats() {
+    const loading = document.getElementById('loading-countryStats');
+    const container = document.getElementById('countryStatsContainer');
+
+    loading.style.display = 'flex';
+    container.style.display = 'none';
+
+    fetch('/api/geographic_analysis/country_statistics')
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                if (countryTable) countryTable.destroy();
+
+                const tbody = document.querySelector('#countryStatsTable tbody');
+                tbody.innerHTML = '';
+
+                result.data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${row.country}</strong></td>
+                        <td>${row.total_events}</td>
+                        <td>${row.events_per_year.toFixed(2)}</td>
+                        <td>${row.total_deaths}</td>
+                        <td>${row.avg_deaths.toFixed(1)}</td>
+                        <td>${row.total_damage.toFixed(1)}M</td>
+                        <td>${row.avg_damage.toFixed(1)}M</td>
+                        <td>${row.total_houses}</td>
+                        <td>${row.avg_intensity.toFixed(2)}</td>
+                        <td>${row.max_intensity.toFixed(2)}</td>
+                        <td>${row.pct_earthquakes.toFixed(2)}</td>
+                        <td>${row.pct_tornadoes.toFixed(2)}</td>
+                        <td>${row.pct_eruptions.toFixed(2)}</td>
+                        <td>${row.pct_tsunami.toFixed(2)}</td>
+                        <td>${row.frequency.toFixed(2)}</td>
+                        <td>${row.event_types_count}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Inizializza DataTables (solo paginazione e ordinamento)
+                countryTable = new DataTable('#countryStatsTable', {
+                    pageLength: 25,
+                    order: [[1, 'desc']]
+                });
+
+                loading.style.display = 'none';
+                container.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            loading.style.display = 'none';
+        });
+}
 
 
 </script>

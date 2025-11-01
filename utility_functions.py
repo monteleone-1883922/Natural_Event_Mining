@@ -242,15 +242,27 @@ def days_since_year0_expr(year_col: str, month_col: str, day_col: str) -> pl.Exp
     # Numero giorni fino all’anno precedente
     days_year = (
         pl.col(year_col) * 365
-        + pl.floor(pl.col(year_col) / 4)        # aggiungi 1 giorno ogni 4 anni (bisestili)
-        - pl.floor(pl.col(year_col) / 100)      # togli 1 ogni 100
-        + pl.floor(pl.col(year_col) / 400)      # aggiungi 1 ogni 400
+        + (pl.col(year_col) / 4).floor()        # aggiungi 1 giorno ogni 4 anni (bisestili)
+        - (pl.col(year_col) / 100).floor()     # togli 1 ogni 100
+        + (pl.col(year_col) / 400).floor()    # aggiungi 1 ogni 400
     )
 
     # Aggiungi giorni dell’anno corrente
-    days_month = pl.when(pl.col(month_col) > 0).then(
-        pl.lit(cum_days)[pl.col(month_col) - 1]
-    ).otherwise(0)
+    days_month = (
+        pl.when(pl.col(month_col) == 1).then(cum_days[0])
+        .when(pl.col(month_col) == 2).then(cum_days[1])
+        .when(pl.col(month_col) == 3).then(cum_days[2])
+        .when(pl.col(month_col) == 4).then(cum_days[3])
+        .when(pl.col(month_col) == 5).then(cum_days[4])
+        .when(pl.col(month_col) == 6).then(cum_days[5])
+        .when(pl.col(month_col) == 7).then(cum_days[6])
+        .when(pl.col(month_col) == 8).then(cum_days[7])
+        .when(pl.col(month_col) == 9).then(cum_days[8])
+        .when(pl.col(month_col) == 10).then(cum_days[9])
+        .when(pl.col(month_col) == 11).then(cum_days[10])
+        .when(pl.col(month_col) == 12).then(cum_days[11])
+        .otherwise(0)
+    )
 
     # Correzione per febbraio bisestile
     is_leap = (
@@ -447,13 +459,211 @@ def geospatial_temporal_clustering(df: pl.DataFrame,
 
     stats = {
         'n_clusters': n_clusters,
-        'n_noise': n_noise,
-        'pct_clustered': ((df.height - n_noise) / df.height * 100) if df.height > 0 else 0,
+        'n_noise': int(n_noise),
+        'pct_clustered': float(((df.height - n_noise) / df.height * 100) if df.height > 0 else 0),
         'cluster_stats': cluster_stats,
         'df_clustered': df_clustered
     }
 
     return stats
+
+
+def prepare_spatiotemporal_payload(df ,
+                                   eps_spatial: float,
+                                   eps_temporal: int,
+                                   min_samples: int):
+    """
+    Prepara il payload JSON per la visualizzazione del clustering spazio-temporale.
+
+    Args:
+        stats: dizionario ritornato da geospatial_temporal_clustering
+        eps_spatial: parametro epsilon spaziale usato
+        eps_temporal: parametro epsilon temporale usato
+        min_samples: parametro min_samples usato
+
+    Returns:
+        Dictionary con summary, top_clusters e plots
+    """
+    stats = geospatial_temporal_clustering(df, eps_spatial, eps_temporal, min_samples)
+    df_clustered = stats['df_clustered']
+    cluster_stats = stats['cluster_stats']
+
+    # ==========================================
+    # 1. SUMMARY STATISTICS
+    # ==========================================
+    summary = {
+        'n_clusters': stats['n_clusters'],
+        'n_noise': stats['n_noise'],
+        'pct_clustered': round(stats['pct_clustered'], 1),
+        'total_events': df_clustered.height,
+        'eps_spatial': eps_spatial,
+        'eps_temporal': eps_temporal,
+        'min_samples': min_samples
+    }
+
+    # ==========================================
+    # 2. TOP CLUSTERS (primi 5 per numero eventi)
+    # ==========================================
+    top_clusters = []
+
+    if cluster_stats is not None and cluster_stats.height > 0:
+        # Prendi i top 5 cluster
+        top_5 = cluster_stats.head(5)
+
+        for row in top_5.iter_rows(named=True):
+            # Estrai tipo dominante da different_types_events
+            types_list = row.get('different_types_events', [])
+            dominant_type = None
+            if types_list and len(types_list) > 0:
+                # types_list è una lista di struct con campi 'event_type' e 'count'
+                # Ordina per count e prendi il primo
+                sorted_types = sorted(types_list, key=lambda x: x.get('count', 0), reverse=True)
+                if sorted_types:
+                    dominant_type = sorted_types[0].get(EVENT_TYPE, 'Unknown')
+
+            cluster_info = {
+                'cluster_id': int(row['cluster_st']),
+                'n_events': int(row['n_events']),
+                'duration_days': int(row['days_period_duration']),
+                'starting_days': int(row['starting_days_from_year_0']),
+                'ending_days': int(row['ending_days_from_year_0']),
+                'lat_centroid': float(row['lat_centroid']),
+                'lon_centroid': float(row['lon_centroid']),
+                'mean_intensity': float(row['mean_intensity']),
+                'max_intensity': float(row['max_intensity']),
+                'dominant_type': dominant_type
+            }
+            top_clusters.append(cluster_info)
+
+    # ==========================================
+    # 3. PLOTS
+    # ==========================================
+    plots = {}
+
+
+    # --- 3.2 DURATION DISTRIBUTION (Istogramma durate) ---
+    durations = cluster_stats['days_period_duration'].to_list()
+    if cluster_stats is not None and cluster_stats.height > 0:
+        cluster_stats_sorted_duration = cluster_stats.sort('days_period_duration', descending=True)
+
+        cluster_ids = [f"Cluster {x}" for x in cluster_stats_sorted_duration['cluster_st'].to_list()]
+
+
+        fig_duration = go.Figure(data=[
+            go.Bar(
+                x=cluster_ids,
+                y=durations,
+                marker_color='coral',
+                textposition='outside'
+            )
+        ])
+
+
+        fig_duration.update_layout(
+            title='Cluster Duration Distribution',
+            xaxis_title='Duration (days)',
+            yaxis_title='Cluster ID',
+            showlegend=False,
+            height=400,
+            xaxis={'categoryorder': 'total descending'}
+        )
+
+        plots['duration'] = fig_to_json_response(fig_duration, False)
+    else:
+        plots['duration'] = {
+            'data': [],
+            'layout': {'title': 'No clusters to display'}
+        }
+
+    # --- 3.3 EVENTS PER CLUSTER (Bar chart) ---
+    if cluster_stats is not None and cluster_stats.height > 0:
+        # Ordina per numero eventi
+        cluster_stats_sorted = cluster_stats.sort('n_events', descending=True)
+
+        cluster_ids = [f"Cluster {x}" for x in cluster_stats_sorted['cluster_st'].to_list()]
+        n_events_list = cluster_stats_sorted['n_events'].to_list()
+
+        fig_events = go.Figure(data=[
+            go.Bar(
+                x=cluster_ids,
+                y=n_events_list,
+                marker_color='coral',
+                text=n_events_list,
+                textposition='outside'
+            )
+        ])
+
+        fig_events.update_layout(
+            title='Number of Events per Cluster',
+            xaxis_title='Cluster ID',
+            yaxis_title='Number of Events',
+            showlegend=False,
+            height=400,
+            xaxis={'categoryorder': 'total descending'}
+        )
+
+        plots['events_per_cluster'] = fig_to_json_response(fig_events, False)
+    else:
+        plots['events_per_cluster'] = {
+            'data': [],
+            'layout': {'title': 'No clusters to display'}
+        }
+
+    # ==========================================
+    # 4. ASSEMBLA PAYLOAD FINALE
+    # ==========================================
+    payload = {
+        'summary': summary,
+        'top_clusters': top_clusters,
+        'plots': plots,
+        'status': 'success',
+        'df_clustered': df_clustered
+    }
+
+    return payload
+
+
+def calculate_country_statistics(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Calcola statistiche aggregate per paese.
+    """
+
+    country_stats = df.group_by("country").agg([
+        pl.count().alias("total_events"),
+        pl.col("deaths").sum().alias("total_deaths"),
+        pl.col("deaths").mean().alias("avg_deaths"),
+        pl.col("damagemillionsdollars").sum().alias("total_damage"),
+        pl.col("damagemillionsdollars").mean().alias("avg_damage"),
+        pl.col("housesdestroyed").sum().alias("total_houses"),
+        pl.col("housesdestroyed").mean().alias("avg_houses"),
+        pl.col("intensity").mean().alias("avg_intensity"),
+        pl.col("intensity").max().alias("max_intensity"),
+        (
+            pl.when((pl.col(YEAR).max() - pl.col(YEAR).min()) > 0)
+            .then(pl.count() / (pl.col(YEAR).max() - pl.col(YEAR).min() + 1))
+            .otherwise(pl.count()).cast(pl.Float64)
+            .alias("frequency")
+        ),
+
+        pl.col(YEAR).min().alias("first_year").cast(pl.Int64),
+        pl.col(YEAR).max().alias("last_year").cast(pl.Int64),
+        (pl.col(EVENT_TYPE).filter(pl.col(EVENT_TYPE) == 'earthquake').count() / pl.count()).alias(
+                        'pct_earthquakes'),
+                    (pl.col(EVENT_TYPE).filter(pl.col(EVENT_TYPE) == 'tsunami').count() / pl.count()).alias('pct_tsunami'),
+                    (pl.col(EVENT_TYPE).filter(pl.col(EVENT_TYPE) == 'eruption').count() / pl.count()).alias('pct_eruptions'),
+                    (pl.col(EVENT_TYPE).filter(pl.col(EVENT_TYPE) == 'tornado').count() / pl.count()).alias('pct_tornadoes'),
+        pl.col(EVENT_TYPE).n_unique().alias("event_types_count"),
+    ]).sort("total_events", descending=True)
+
+    country_stats = country_stats.with_columns([
+        (pl.col("last_year") - pl.col("first_year") + 1).alias("years_covered"),
+    ]).with_columns([
+        (pl.col("total_events") / pl.col("years_covered")).cast(pl.Int64).alias("events_per_year")
+    ])
+
+    country_stats = country_stats.fill_null(0)
+
+    return country_stats
 
 
 # # ============================================

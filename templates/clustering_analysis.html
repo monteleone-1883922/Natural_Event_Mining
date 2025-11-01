@@ -32,16 +32,6 @@
                     <i class="fas fa-clock"></i> Spatial-Temporal Clustering
                 </button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link"
-                        id="countries-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#countries"
-                        type="button"
-                        role="tab">
-                    <i class="fas fa-flag"></i> Clustering by Countries
-                </button>
-            </li>
         </ul>
 
         <div class="tab-content">
@@ -108,6 +98,43 @@
                         </button>
                     </form>
                 </div>
+
+                <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <div class="card h-100 border-primary navigation-card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-globe fa-3x text-primary mb-3"></i>
+                                <h5 class="card-title">Map of clustered events</h5>
+                                <p class="card-text">Shows the distribution of clusters across the world</p>
+
+                                <!-- Button with dynamic state -->
+                                <button
+                                        id="viewMapGeoClustersButton"
+                                        class="btn btn-secondary"
+                                        onclick="openGeoClusterMap()"
+                                        disabled
+                                >
+                                <span id="btnIconContainer">
+                                    <i class="fas fa-info-circle me-2" id="btnIcon"></i>
+                                </span>
+                                    <span id="btnText">First choose clustering params</span>
+                                </button>
+
+                                <!-- Status indicator -->
+                                <div id="geoClusteringMapIndicator" class="mt-3" style="display: none;">
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <small class="text-muted">Generating clustering map, please wait...</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
                 <!-- Loading State -->
                 <div id="geoLoadingState" class="loading" style="display: none;">
@@ -205,55 +232,241 @@
 
             </div>
 
-            <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-12">
-                    <div class="card h-100 border-primary navigation-card">
-                        <div class="card-body text-center">
-                            <i class="fas fa-globe fa-3x text-primary mb-3"></i>
-                            <h5 class="card-title">Map of clustered events</h5>
-                            <p class="card-text">Shows the distribution of clusters across the world</p>
 
-                            <!-- Button with dynamic state -->
-                            <button
-                                id="viewMapGeoClustersButton"
-                                class="btn btn-secondary"
-                                onclick="openGeoClusterMap()"
-                                disabled
-                            >
-                                <span id="btnIconContainer">
-                                    <i class="fas fa-info-circle me-2" id="btnIcon"></i>
-                                </span>
-                                <span id="btnText">First choose clustering params</span>
-                            </button>
-
-                            <!-- Status indicator -->
-                            <div id="geoClusteringMapIndicator" class="mt-3" style="display: none;">
-                                <div class="d-flex align-items-center justify-content-center">
-                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <small class="text-muted">Generating clustering map, please wait...</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
             <!-- ============================================
-                 TAB 2: SPATIOTEMPORAL CLUSTERING
-                 ============================================ -->
+             TAB 2: SPATIOTEMPORAL CLUSTERING
+             ============================================ -->
             <div class="tab-pane fade"
                  id="spatiotemporal"
                  role="tabpanel"
                  aria-labelledby="spatiotemporal-tab">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    Tab Spazio-Temporale - In sviluppo
+
+                <!-- Controls Section -->
+                <div class="clustering-controls">
+                    <h5 class="mb-3">
+                        <i class="fas fa-sliders-h"></i> Spatio-Temporal Parameters
+                    </h5>
+                    <form id="stClusteringForm" class="settings-form" onsubmit="exec_spatiotemporal_clustering()">
+                        <div class="form-group-inline">
+                            <label for="epsSpatial">
+                                Spatial Distance (ε)
+                                <span class="info-tooltip"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      title="Maximum spatial distance in degrees (e.g., 2° ≈ 220 km)">
+                                ?
+                            </span>
+                            </label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="epsSpatial"
+                                   name="eps_spatial"
+                                   min="0.5"
+                                   max="10"
+                                   step="0.5"
+                                   value="2.0"
+                                   required>
+                            <small class="text-muted">degrees (~110 km per degree)</small>
+                        </div>
+
+                        <div class="form-group-inline">
+                            <label for="epsTemporal">
+                                Temporal Window (τ)
+                                <span class="info-tooltip"
+                                      data-bs-toggle="tooltip"
+                                      title="Maximum temporal distance in days">
+                                ?
+                            </span>
+                            </label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="epsTemporal"
+                                   name="eps_temporal"
+                                   min="1"
+                                   max="365"
+                                   value="30"
+                                   required>
+                            <small class="text-muted">days</small>
+                        </div>
+
+                        <div class="form-group-inline">
+                            <label for="minSamples">
+                                Min Samples
+                                <span class="info-tooltip"
+                                      data-bs-toggle="tooltip"
+                                      title="Minimum events to form a cluster">
+                                ?
+                            </span>
+                            </label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="minSamples"
+                                   name="min_samples"
+                                   min="2"
+                                   max="50"
+                                   value="5"
+                                   required>
+                        </div>
+
+                        <button type="submit" class="btn btn-analyze">
+                            <i class="fas fa-clock me-2"></i>
+                            Execute ST-Clustering
+                        </button>
+
+                        <button type="button" class="btn btn-outline-secondary" id="resetSTBtn">
+                            <i class="fas fa-redo me-2"></i>
+                            Reset
+                        </button>
+                    </form>
                 </div>
+
+                <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <div class="card h-100 border-primary navigation-card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-clock fa-3x text-primary mb-3"></i>
+                                            <h5 class="card-title">Interactive Temporal Map</h5>
+                                            <p class="card-text">Explore cluster evolution over time with the time
+                                                slider</p>
+
+                                            <button
+                                                    id="viewSTMapButton"
+                                                    class="btn btn-secondary"
+                                                    onclick="openSTClusterMap()"
+                                                    disabled
+                                            >
+                                            <span id="stBtnIconContainer">
+                                                <i class="fas fa-info-circle me-2" id="stBtnIcon"></i>
+                                            </span>
+                                                <span id="stBtnText">First execute clustering</span>
+                                            </button>
+
+                                            <div id="stClusteringMapIndicator" class="mt-3" style="display: none;">
+                                                <div class="d-flex align-items-center justify-content-center">
+                                                    <div class="spinner-border spinner-border-sm text-primary me-2"
+                                                         role="status">
+                                                        <span class="visually-hidden">Loading...</span>
+                                                    </div>
+                                                    <small class="text-muted">Generating temporal map, please
+                                                        wait...</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                <!-- Loading State -->
+                <div id="stLoadingState" class="loading" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="loading-text">Processing spatio-temporal analysis...</p>
+                </div>
+
+                <!-- Results Section -->
+                <div id="stResults" style="display: none;">
+
+                    <!-- Summary Statistics Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-info-circle"></i> Spatio-Temporal Clustering Summary
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-layer-group stat-icon"></i>
+                                            Clusters Found
+                                        </div>
+                                        <div class="stat-value" id="stNumClusters">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-check-circle stat-icon text-success"></i>
+                                            Clustered Events
+                                        </div>
+                                        <div class="stat-value" id="stClusteredEvents">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-times-circle stat-icon text-danger"></i>
+                                            Noise Events
+                                        </div>
+                                        <div class="stat-value" id="stNoiseEvents">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-percentage stat-icon"></i>
+                                            % Clustered
+                                        </div>
+                                        <div class="stat-value" id="stPctClustered">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Map Card -->
+
+
+                    <!-- Top Clusters Cards -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-star"></i> Top 5 Significant Clusters
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="stTopClustersContainer">
+                                <!-- Top cluster cards will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row mb-4">
+
+
+                        <!-- Cluster Duration Distribution -->
+
+                            <div class="card mb-4" >
+                                <div class="card-header">
+                                    <i class="fas fa-chart-bar"></i> Cluster Duration Distribution
+                                </div>
+                                <div class="card-body">
+                                    <div id="stDurationChart" class="chart-container"></div>
+                                </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Events per Cluster -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-chart-column"></i> Events Distribution per Cluster
+                        </div>
+                        <div class="card-body">
+                            <div id="stEventsPerClusterChart" class="chart-container"></div>
+                        </div>
+                    </div>
+
+                </div>
+
             </div>
+
+
+
+
+
 
         </div>
 
@@ -263,70 +476,76 @@
 
 {% block extra_js %}
 <script>
-let geoClusteringMapPollingInterval = null;
-const geoForm = document.getElementById('geoClusteringForm');
-const loadingState = document.getElementById('geoLoadingState');
-const resultsSection = document.getElementById('geoResults');
-const resetBtn = document.getElementById('resetGeoBtn');
-let currentNumClusters = null;
-let currentCellSize = null;
+    let geoClusteringMapPollingInterval = null;
+    const geoForm = document.getElementById('geoClusteringForm');
+    const loadingState = document.getElementById('geoLoadingState');
+    const resultsSection = document.getElementById('geoResults');
+    const resetBtn = document.getElementById('resetGeoBtn');
+    let currentNumClusters = null;
+    let currentCellSize = null;
+    let stClusteringMapPollingInterval = null;
+    const stForm = document.getElementById('stClusteringForm');
+    const stLoadingState = document.getElementById('stLoadingState');
+    const stResultsSection = document.getElementById('stResults');
+    const stResetBtn = document.getElementById('resetSTBtn');
+    let currentSTParams = null;
 
-// Initialize tooltips
-var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl);
-});
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 
     // Form submit handler
-function exec_geographical_clustering() {
-    event.preventDefault();
+    function exec_geographical_clustering() {
+        event.preventDefault();
 
-    const num_clusters = document.getElementById('nClustersGeo').value;
-    const grid_size = document.getElementById('gridSizeGeo').value;
-    currentCellSize = grid_size;
-    currentNumClusters = num_clusters;
+        const num_clusters = document.getElementById('nClustersGeo').value;
+        const grid_size = document.getElementById('gridSizeGeo').value;
+        currentCellSize = grid_size;
+        currentNumClusters = num_clusters;
 
-    // Show loading state
-    loadingState.style.display = 'flex';
-    resultsSection.style.display = 'none';
+        // Show loading state
+        loadingState.style.display = 'flex';
+        resultsSection.style.display = 'none';
 
-    // API call
-    fetch(`/api/cluster_analysis/geographical_cluster/${num_clusters}/${grid_size}`)
-        .then(response => response.json())
-        .then(data => {
-            // Hide loading
-            loadingState.style.display = 'none';
-            resultsSection.style.display = 'block';
+        // API call
+        fetch(`/api/cluster_analysis/geographical_cluster/${num_clusters}/${grid_size}`)
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading
+                loadingState.style.display = 'none';
+                resultsSection.style.display = 'block';
 
-            // Populate summary statistics
-            document.getElementById('totalEvents').textContent = data.summary.total_events;
-            document.getElementById('numClusters').textContent = data.summary.num_clusters;
-            document.getElementById('silhouetteScore').textContent = data.summary.silhouette_score.toFixed(3);
+                // Populate summary statistics
+                document.getElementById('totalEvents').textContent = data.summary.total_events;
+                document.getElementById('numClusters').textContent = data.summary.num_clusters;
+                document.getElementById('silhouetteScore').textContent = data.summary.silhouette_score.toFixed(3);
 
-            // Generate cluster cards
-            generateClusterCards(data.clusters);
-            onGeographicClusterSelectionChange()
+                // Generate cluster cards
+                generateClusterCards(data.clusters);
+                onGeographicClusterSelectionChange()
 
-            // Render Plotly charts
+                // Render Plotly charts
 
-            Plotly.newPlot('heatmapChart', data.plots.heatmap.data, data.plots.heatmap.layout, {responsive: true});
-            Plotly.newPlot('eventsPerClusterChart', data.plots.events_per_cluster.data, data.plots.events_per_cluster.layout, {responsive: true});
-            Plotly.newPlot('eventsPerTypeChart', data.plots.events_per_type.data, data.plots.events_per_type.layout, {responsive: true});
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            loadingState.style.display = 'none';
-            alert('Error performing clustering analysis. Please try again.');
-        });
-}
+                Plotly.newPlot('heatmapChart', data.plots.heatmap.data, data.plots.heatmap.layout, {responsive: true});
+                Plotly.newPlot('eventsPerClusterChart', data.plots.events_per_cluster.data, data.plots.events_per_cluster.layout, {responsive: true});
+                Plotly.newPlot('eventsPerTypeChart', data.plots.events_per_type.data, data.plots.events_per_type.layout, {responsive: true});
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingState.style.display = 'none';
+                alert('Error performing clustering analysis. Please try again.');
+            });
+    }
 
     // Reset button handler
-resetBtn.addEventListener('click', function() {
-    geoForm.reset();
-    resultsSection.style.display = 'none';
-});
+    resetBtn.addEventListener('click', function () {
+        geoForm.reset();
+        resultsSection.style.display = 'none';
+    });
 
-function onGeographicClusterSelectionChange() {
+    function onGeographicClusterSelectionChange() {
         if (!currentNumClusters || !currentCellSize) {
             // No selection made
             updateGeoClusteringMapButtonState('no-selection');
@@ -343,14 +562,14 @@ function onGeographicClusterSelectionChange() {
     }
 
     // Function to generate cluster cards
-function generateClusterCards(clusters) {
-    const container = document.getElementById('clusterCardsContainer');
-    container.innerHTML = '';
+    function generateClusterCards(clusters) {
+        const container = document.getElementById('clusterCardsContainer');
+        container.innerHTML = '';
 
-    clusters.forEach((cluster, index) => {
-        const card = document.createElement('div');
-        card.className = 'col-md-6 col-lg-4 mb-4'; // Card più larghe per contenere più informazioni
-        card.innerHTML = `
+        clusters.forEach((cluster, index) => {
+            const card = document.createElement('div');
+            card.className = 'col-md-6 col-lg-4 mb-4'; // Card più larghe per contenere più informazioni
+            card.innerHTML = `
             <div class="card h-100 cluster-card" style="border-left: 4px solid ${cluster.color}">
                 <div class="card-body">
                     <h5 class="card-title">
@@ -415,115 +634,115 @@ function generateClusterCards(clusters) {
                 </div>
             </div>
         `;
-        container.appendChild(card);
-    });
-}
-
-// Function to update button based on current state
-function updateGeoClusteringMapButtonState(state) {
-    const btn = document.getElementById('viewMapGeoClustersButton');
-    const btnText = document.getElementById('btnText');
-    const btnIcon = document.getElementById('btnIcon');
-    const statusIndicator = document.getElementById('geoClusteringMapIndicator');
-
-    switch(state) {
-        case 'no-selection':
-            // No column selected
-            btn.disabled = true;
-            btn.className = 'btn btn-secondary';
-            btnIcon.className = 'fas fa-info-circle me-2';
-            btnText.textContent = 'Select a column to analyze';
-            statusIndicator.style.display = 'none';
-            break;
-
-        case 'generating':
-            // Heatmap is being generated
-            btn.disabled = true;
-            btn.className = 'btn btn-warning';
-            btnIcon.className = 'fas fa-spinner fa-spin me-2';
-            btnText.textContent = 'Generating Geographic clustering map...';
-            statusIndicator.style.display = 'block';
-            break;
-
-        case 'ready':
-            // Heatmap is ready
-            btn.disabled = false;
-            btn.className = 'btn btn-primary';
-            btnIcon.className = 'fas fa-map-marked-alt me-2';
-            btnText.textContent = 'View Geographic Clustering Map';
-            statusIndicator.style.display = 'none';
-            break;
-
-        case 'error':
-            // Error occurred
-            btn.disabled = true;
-            btn.className = 'btn btn-danger';
-            btnIcon.className = 'fas fa-exclamation-triangle me-2';
-            btnText.textContent = 'Error generating geographic clustering map';
-            statusIndicator.style.display = 'none';
-            break;
-    }
-}
-
-// Function to check if heatmap is ready
-async function checkGeoClusterMapReady(n_clusters, cell_size) {
-    try {
-        const response = await fetch(`/api/cluster_analysis/geographical_cluster/${n_clusters}/${cell_size}/status`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.ready;
-    } catch (error) {
-        console.error('Error checking geographic clustering map status:', error);
-        return false;
-    }
-}
-
-// Function to start polling for heatmap readiness
-function startGeoClusteringMapPolling(n_clusters, cell_size) {
-    // Clear any existing polling interval
-    if (geoClusteringMapPollingInterval) {
-        clearInterval(geoClusteringMapPollingInterval);
+            container.appendChild(card);
+        });
     }
 
-    // Set button to generating state
-    updateGeoClusteringMapButtonState('generating');
+    // Function to update button based on current state
+    function updateGeoClusteringMapButtonState(state) {
+        const btn = document.getElementById('viewMapGeoClustersButton');
+        const btnText = document.getElementById('btnText');
+        const btnIcon = document.getElementById('btnIcon');
+        const statusIndicator = document.getElementById('geoClusteringMapIndicator');
 
-    let pollCount = 0;
-    const maxPolls = 120; // Maximum 2 minutes (120 * 1 second)
+        switch (state) {
+            case 'no-selection':
+                // No column selected
+                btn.disabled = true;
+                btn.className = 'btn btn-secondary';
+                btnIcon.className = 'fas fa-info-circle me-2';
+                btnText.textContent = 'Select a column to analyze';
+                statusIndicator.style.display = 'none';
+                break;
 
-    // Start polling every second
-    geoClusteringMapPollingInterval = setInterval(async () => {
-        pollCount++;
+            case 'generating':
+                // Heatmap is being generated
+                btn.disabled = true;
+                btn.className = 'btn btn-warning';
+                btnIcon.className = 'fas fa-spinner fa-spin me-2';
+                btnText.textContent = 'Generating Geographic clustering map...';
+                statusIndicator.style.display = 'block';
+                break;
 
-        // Check if current selection has changed
-        if (currentNumClusters !== n_clusters || currentCellSize !== cell_size) {
+            case 'ready':
+                // Heatmap is ready
+                btn.disabled = false;
+                btn.className = 'btn btn-primary';
+                btnIcon.className = 'fas fa-map-marked-alt me-2';
+                btnText.textContent = 'View Geographic Clustering Map';
+                statusIndicator.style.display = 'none';
+                break;
+
+            case 'error':
+                // Error occurred
+                btn.disabled = true;
+                btn.className = 'btn btn-danger';
+                btnIcon.className = 'fas fa-exclamation-triangle me-2';
+                btnText.textContent = 'Error generating geographic clustering map';
+                statusIndicator.style.display = 'none';
+                break;
+        }
+    }
+
+    // Function to check if heatmap is ready
+    async function checkGeoClusterMapReady(n_clusters, cell_size) {
+        try {
+            const response = await fetch(`/api/cluster_analysis/geographical_cluster/${n_clusters}/${cell_size}/status`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.ready;
+        } catch (error) {
+            console.error('Error checking geographic clustering map status:', error);
+            return false;
+        }
+    }
+
+    // Function to start polling for heatmap readiness
+    function startGeoClusteringMapPolling(n_clusters, cell_size) {
+        // Clear any existing polling interval
+        if (geoClusteringMapPollingInterval) {
             clearInterval(geoClusteringMapPollingInterval);
-            return;
         }
 
-        const isReady = await checkGeoClusterMapReady(n_clusters, cell_size);
+        // Set button to generating state
+        updateGeoClusteringMapButtonState('generating');
 
-        if (isReady) {
-            // Heatmap is ready!
-            clearInterval(geoClusteringMapPollingInterval);
-            updateGeoClusteringMapButtonState('ready');
-            console.log('GeoClusteringMap is ready!');
-        } else if (pollCount >= maxPolls) {
-            // Timeout reached
-            clearInterval(geoClusteringMapPollingInterval);
-            updateHeatmapButtonState('error');
-            showError('geoClusteringMap generation timeout. Please try again.');
-        }
-        // Otherwise, continue polling...
-    }, 30000); // Poll every 40 second
-}
+        let pollCount = 0;
+        const maxPolls = 120; // Maximum 2 minutes (120 * 1 second)
 
-// Function to open heatmap in new tab
-function openGeoClusterMap() {
+        // Start polling every second
+        geoClusteringMapPollingInterval = setInterval(async () => {
+            pollCount++;
+
+            // Check if current selection has changed
+            if (currentNumClusters !== n_clusters || currentCellSize !== cell_size) {
+                clearInterval(geoClusteringMapPollingInterval);
+                return;
+            }
+
+            const isReady = await checkGeoClusterMapReady(n_clusters, cell_size);
+
+            if (isReady) {
+                // Heatmap is ready!
+                clearInterval(geoClusteringMapPollingInterval);
+                updateGeoClusteringMapButtonState('ready');
+                console.log('GeoClusteringMap is ready!');
+            } else if (pollCount >= maxPolls) {
+                // Timeout reached
+                clearInterval(geoClusteringMapPollingInterval);
+                updateGeoClusteringMapButtonState('error');
+                showError('geoClusteringMap generation timeout. Please try again.');
+            }
+            // Otherwise, continue polling...
+        }, 30000); // Poll every 40 second
+    }
+
+    // Function to open heatmap in new tab
+    function openGeoClusterMap() {
         if (!currentNumClusters || !currentCellSize) {
             showError('Please select an num clusters and cell size first');
             return;
@@ -531,6 +750,228 @@ function openGeoClusterMap() {
 
         // Open heatmap in new tab
         window.open(`/cluster_analysis/geographical_cluster/${currentNumClusters}/${currentCellSize}/map`, '_self');
+    }
+
+    function exec_spatiotemporal_clustering() {
+        event.preventDefault();
+
+        const eps_spatial = document.getElementById('epsSpatial').value;
+        const eps_temporal = document.getElementById('epsTemporal').value;
+        const min_samples = document.getElementById('minSamples').value;
+
+        currentSTParams = {
+            eps_spatial: eps_spatial,
+            eps_temporal: eps_temporal,
+            min_samples: min_samples
+        };
+
+        // Show loading state
+        stLoadingState.style.display = 'flex';
+        stResultsSection.style.display = 'none';
+
+        // API call
+        fetch(`/api/cluster_analysis/spatiotemporal_cluster/${eps_spatial}/${eps_temporal}/${min_samples}`)
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading
+                stLoadingState.style.display = 'none';
+                stResultsSection.style.display = 'block';
+
+                // Populate summary statistics
+                document.getElementById('stNumClusters').textContent = data.summary.n_clusters;
+                document.getElementById('stClusteredEvents').textContent = data.summary.total_events - data.summary.n_noise;
+                document.getElementById('stNoiseEvents').textContent = data.summary.n_noise;
+                document.getElementById('stPctClustered').textContent = data.summary.pct_clustered.toFixed(1) + '%';
+
+                // Generate top clusters cards
+                generateSTTopClusters(data.top_clusters);
+
+                // Start polling for map
+                onSTClusterSelectionChange();
+
+                // Render Plotly charts
+                Plotly.newPlot('stDurationChart', data.plots.duration.data, data.plots.duration.layout, {responsive: true});
+                Plotly.newPlot('stEventsPerClusterChart', data.plots.events_per_cluster.data, data.plots.events_per_cluster.layout, {responsive: true});
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                stLoadingState.style.display = 'none';
+                alert('Error performing spatio-temporal clustering. Please try again.');
+            });
+    }
+
+    // Reset button handler
+    stResetBtn.addEventListener('click', function () {
+        stForm.reset();
+        stResultsSection.style.display = 'none';
+        currentSTParams = null;
+        updateSTMapButtonState('no-selection');
+    });
+
+    // Generate top clusters cards
+    function generateSTTopClusters(clusters) {
+        const container = document.getElementById('stTopClustersContainer');
+        container.innerHTML = '';
+
+        clusters.forEach((cluster, index) => {
+            const card = document.createElement('div');
+            card.className = 'col-md-6 col-lg-4 mb-3';
+
+            // Converti giorni in date leggibili (approssimazione)
+            const startYear = Math.floor(cluster.starting_days / 365.25);
+            const endYear = Math.floor(cluster.ending_days / 365.25);
+
+            card.innerHTML = `
+            <div class="card h-100 border-start border-4" style="border-color: ${getClusterColor(cluster.cluster_id)} !important;">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-circle me-2" style="color: ${getClusterColor(cluster.cluster_id)}"></i>
+                        Cluster ${cluster.cluster_id}
+                    </h6>
+                    <hr class="my-2">
+                    <small>
+                        <p class="mb-1"><strong>Events:</strong> ${cluster.n_events}</p>
+                        <p class="mb-1"><strong>Duration:</strong> ${cluster.duration_days} days</p>
+                        <p class="mb-1"><strong>Period:</strong> ~Year ${startYear} - ${endYear}</p>
+                        <p class="mb-1"><strong>Location:</strong> ${cluster.lat_centroid.toFixed(2)}°, ${cluster.lon_centroid.toFixed(2)}°</p>
+                        <p class="mb-1"><strong>Avg Intensity:</strong> ${cluster.mean_intensity.toFixed(2)}</p>
+                        <p class="mb-1"><strong>Max Intensity:</strong> ${cluster.max_intensity.toFixed(2)}</p>
+                        ${cluster.dominant_type ? `<p class="mb-0"><strong>Type:</strong> ${cluster.dominant_type}</p>` : ''}
+                    </small>
+                </div>
+            </div>
+        `;
+            container.appendChild(card);
+        });
+    }
+
+    // Get cluster color (simple color scheme)
+    function getClusterColor(clusterId) {
+        const colors = [
+            '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+            '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4'
+        ];
+        return colors[clusterId % colors.length];
+    }
+
+    // Update ST map button state
+    function updateSTMapButtonState(state) {
+        const btn = document.getElementById('viewSTMapButton');
+        const btnText = document.getElementById('stBtnText');
+        const btnIcon = document.getElementById('stBtnIcon');
+        const statusIndicator = document.getElementById('stClusteringMapIndicator');
+
+        switch (state) {
+            case 'no-selection':
+                btn.disabled = true;
+                btn.className = 'btn btn-secondary';
+                btnIcon.className = 'fas fa-info-circle me-2';
+                btnText.textContent = 'First execute clustering';
+                statusIndicator.style.display = 'none';
+                break;
+
+            case 'generating':
+                btn.disabled = true;
+                btn.className = 'btn btn-warning';
+                btnIcon.className = 'fas fa-spinner fa-spin me-2';
+                btnText.textContent = 'Generating temporal map...';
+                statusIndicator.style.display = 'block';
+                break;
+
+            case 'ready':
+                btn.disabled = false;
+                btn.className = 'btn btn-primary';
+                btnIcon.className = 'fas fa-play-circle me-2';
+                btnText.textContent = 'View Temporal Map';
+                statusIndicator.style.display = 'none';
+                break;
+
+            case 'error':
+                btn.disabled = true;
+                btn.className = 'btn btn-danger';
+                btnIcon.className = 'fas fa-exclamation-triangle me-2';
+                btnText.textContent = 'Error generating map';
+                statusIndicator.style.display = 'none';
+                break;
+        }
+    }
+
+    // Check if ST map is ready
+    async function checkSTMapReady(eps_spatial, eps_temporal, min_samples) {
+        try {
+            const response = await fetch(`/api/cluster_analysis/spatiotemporal_cluster/${eps_spatial}/${eps_temporal}/${min_samples}/status`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            return data.ready;
+        } catch (error) {
+            console.error('Error checking ST map status:', error);
+            return false;
+        }
+    }
+
+    // Start polling for ST map
+    function startSTMapPolling(eps_spatial, eps_temporal, min_samples) {
+        if (stClusteringMapPollingInterval) {
+            clearInterval(stClusteringMapPollingInterval);
+        }
+
+        updateSTMapButtonState('generating');
+
+        let pollCount = 0;
+        const maxPolls = 120;
+
+        stClusteringMapPollingInterval = setInterval(async () => {
+            pollCount++;
+
+            if (!currentSTParams ||
+                currentSTParams.eps_spatial !== eps_spatial ||
+                currentSTParams.eps_temporal !== eps_temporal ||
+                currentSTParams.min_samples !== min_samples) {
+                clearInterval(stClusteringMapPollingInterval);
+                return;
+            }
+
+            const isReady = await checkSTMapReady(eps_spatial, eps_temporal, min_samples);
+
+            if (isReady) {
+                clearInterval(stClusteringMapPollingInterval);
+                updateSTMapButtonState('ready');
+                console.log('ST Map is ready!');
+            } else if (pollCount >= maxPolls) {
+                clearInterval(stClusteringMapPollingInterval);
+                updateSTMapButtonState('error');
+                alert('Map generation timeout. Please try again.');
+            }
+        }, 30000);
+    }
+
+    // Trigger map polling
+    function onSTClusterSelectionChange() {
+        if (!currentSTParams) {
+            updateSTMapButtonState('no-selection');
+            if (stClusteringMapPollingInterval) {
+                clearInterval(stClusteringMapPollingInterval);
+                stClusteringMapPollingInterval = null;
+            }
+        } else {
+            startSTMapPolling(
+                currentSTParams.eps_spatial,
+                currentSTParams.eps_temporal,
+                currentSTParams.min_samples
+            );
+        }
+    }
+
+    // Open ST map in new tab
+    function openSTClusterMap() {
+        if (!currentSTParams) {
+            alert('Please execute clustering first');
+            return;
+        }
+        window.open(
+            `/cluster_analysis/spatiotemporal_cluster/${currentSTParams.eps_spatial}/${currentSTParams.eps_temporal}/${currentSTParams.min_samples}/map`,
+            '_self'
+        );
     }
 
 </script>

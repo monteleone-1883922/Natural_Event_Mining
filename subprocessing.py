@@ -4,7 +4,7 @@ from multiprocessing import Process
 import folium
 from threading import Thread
 import polars as pl
-from folium.plugins import HeatMap, MarkerCluster, AntPath
+from folium.plugins import HeatMap, MarkerCluster, AntPath, TimestampedGeoJson
 from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, LATITUDE, LONGITUDE, REGION, NATURAL_EVENT_ID, \
     LATITUDE_END, LONGITUDE_END, EVENTS_MAPS, INTENSITY_MAPS, INTENSITY, MAPS_PATH, \
     LEGEND_HTML_OUTLIERS_HEATMAPS, TEMPLATES_PATH
@@ -323,6 +323,173 @@ def create_outliers_heatmap(df_outliers, map_name):
     print(f"✅ Saved {output_path}")
     return
 
+
+def generate_temporal_cluster_map(df_clustered: pl.DataFrame, n_clusters, eps_spatial, eps_temporal, min_samples, id):
+    """
+    Genera una mappa Folium con time slider per visualizzare l'evoluzione temporale dei cluster.
+
+    Args:
+        df_clustered: DataFrame con colonne cluster_st, lat, lon, days_epoch, intensity, event_type
+        n_clusters: numero di cluster trovati
+        id: identificatore per il filename
+    """
+
+    # Colori per i cluster (-1 = grigio per noise)
+    cmap = cm.get_cmap('tab10', n_clusters + 1)
+    cluster_colors = {-1: '#808080'}  # grigio per noise
+    for i in range(n_clusters):
+        cluster_colors[i] = mcolors.to_hex(cmap(i))
+
+    # Crea mappa centrata sul centro medio
+    center_lat = df_clustered[LATITUDE].mean()
+    center_lon = df_clustered[LONGITUDE].mean()
+    m = folium.Map(
+        location=[center_lat, center_lon],
+        zoom_start=3,
+        tiles='cartodb positron'
+    )
+
+    # Prepara features per TimestampedGeoJson
+    features = []
+
+    # AGGIUNGI QUESTO: Contatore per debug
+    total_rows = df_clustered.height
+    processed_rows = 0
+
+    for row in df_clustered.iter_rows(named=True):
+        cluster_id = int(row.get("cluster_st", -1))
+        color = cluster_colors.get(cluster_id, '#808080')
+
+        # Estrai dati
+        year = int(row.get(YEAR, 0))
+        month = int(row.get(MONTH, 0))
+        day = int(row.get(DAY, 0))
+
+        # VERIFICA: Skippa righe con date invalide
+        if year == 0 or month == 0 or day == 0:
+            print(f"⚠️ Skipping row with invalid date: {year}-{month}-{day}")
+            continue
+
+        event_date = f"{year}-{month:02d}-{day:02d}"
+        lat = float(row.get(LATITUDE, 0))
+        lon = float(row.get(LONGITUDE, 0))
+        intensity = float(row.get("intensity", 0) or 0)
+        event_type = row.get(EVENT_TYPE, "unknown")
+        deaths = row.get("deaths", 0) or 0
+        damage = row.get("damagemillionsdollars", 0) or 0
+        houses = row.get("housesdestroyed", 0) or 0
+        days_epoch = row.get("days_epoch", 0)
+
+        # Raggio proporzionale all'intensità
+        radius = max(5, min(20, intensity * 2.5))
+
+        # Popup HTML
+        popup_text = f"""
+        <b>Cluster:</b> {cluster_id if cluster_id >= 0 else 'Noise'}<br>
+        <b>Date:</b> {event_date}<br>
+        <b>Event Type:</b> {event_type}<br>
+        <b>Intensity:</b> {intensity:.2f}<br>
+        <b>Deaths:</b> {deaths}<br>
+        <b>Damage (M$):</b> {damage}<br>
+        <b>Houses Destroyed:</b> {houses}
+        """
+
+        # Feature GeoJSON con timestamp COMPLETO (non solo anno!)
+        feature = {
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [lon, lat]
+            },
+            'properties': {
+                'time': event_date,  # ✅ USA DATA COMPLETA invece di solo year
+                'popup': popup_text,
+                'icon': 'circle',
+                'iconstyle': {
+                    'fillColor': color,
+                    'fillOpacity': 0.7,
+                    'stroke': 'true',
+                    'radius': radius,
+                    'color': color,
+                    'weight': 2
+                }
+            }
+        }
+        features.append(feature)
+        processed_rows += 1
+
+    # AGGIUNGI QUESTO: Verifica che tutti gli eventi siano stati processati
+    print(f"📊 Processed {processed_rows}/{total_rows} events for map")
+    if processed_rows < total_rows:
+        print(f"⚠️ WARNING: {total_rows - processed_rows} events were skipped!")
+
+    # Aggiungi TimestampedGeoJson con slider annuale
+    TimestampedGeoJson(
+        {
+            'type': 'FeatureCollection',
+            'features': features
+        },
+        period='P1Y',  # Intervallo ANNUALE
+        add_last_point=True,
+        auto_play=False,
+        loop=False,
+        max_speed=2,
+        loop_button=True,
+        date_options='YYYY',  # Mostra solo l'anno
+        time_slider_drag_update=True,
+        duration='P1Y'  # Durata di 1 anno per step
+    ).add_to(m)
+
+    # Aggiungi legenda cluster
+    legend_html = f"""
+    <div style="
+        position: fixed;
+        bottom: 20px; left: 20px; width: 240px;
+        background-color: white; border:2px solid grey; z-index:9999; font-size:13px;
+        padding: 12px; border-radius: 8px; box-shadow: 2px 2px 6px rgba(0,0,0,0.3);">
+        <b>🗺️ Spatio-Temporal Clusters</b><br>
+        <small style="color: #666;">Use time slider to explore evolution</small><br><br>
+    """
+
+    # Aggiungi solo i primi 10 cluster per non sovraffollare
+    for i in range(min(10, n_clusters)):
+        color = cluster_colors[i]
+        legend_html += f'<i style="background:{color};width:15px;height:15px;float:left;margin-right:8px;opacity:0.8;border-radius:50%;"></i> Cluster {i}<br>'
+
+    if n_clusters > 10:
+        legend_html += f'<small style="color: #999;">... and {n_clusters - 10} more clusters</small><br>'
+
+    legend_html += f'<i style="background:#808080;width:15px;height:15px;float:left;margin-right:8px;opacity:0.5;border-radius:50%;"></i> Noise<br>'
+    legend_html += "</div>"
+
+    m.get_root().html.add_child(folium.Element(legend_html))
+
+    # Aggiungi info box in alto a destra
+    info_html = f"""
+    <div style="
+        position: fixed;
+        top: 20px; right: 20px; width: 200px;
+        background-color: rgba(255,255,255,0.95); border:2px solid #2c5aa0; z-index:9999; font-size:12px;
+        padding: 10px; border-radius: 8px; box-shadow: 2px 2px 6px rgba(0,0,0,0.3);">
+        <b>📊 Analysis Summary</b><br>
+        <b>Total Clusters:</b> {n_clusters}<br>
+        <b>Total Events:</b> {processed_rows}<br>
+        <b>Clustered:</b> {df_clustered.filter(pl.col('cluster_st') >= 0).height}<br>
+        <small style="color: #666;">Circle size = intensity</small>
+    </div>
+    """
+
+    m.get_root().html.add_child(folium.Element(info_html))
+
+    # Salva la mappa
+    filename = f'{TEMPLATES_PATH}{MAPS_PATH}cluster_maps/spatial_temporal_map_{eps_spatial}_spatial_{eps_temporal}_temporal_{min_samples}_samples_{id}.html'
+    print(f"💾 Saving temporal map {filename} ...")
+    m.save(filename)
+    print(f"✅ Temporal map saved with {processed_rows} events!")
+
+    return filename
+
+
 def start_map_generation(engine: SqlEngine):
     """Avvia un processo separato per generare le mappe, se non esistono già."""
 
@@ -357,3 +524,9 @@ def generate_map_geographic_cluster(df_clustered, n_clusters, cell_size, id):
     thread.daemon = True
     thread.start()
     print(f"🚀 Cluster map for {n_clusters} clusters and cell size '{cell_size}' started in background.")
+
+def generate_map_spatiotemporal_cluster(df_clustered, n_clusters, eps_spatial, eps_temporal, min_samples, id):
+    thread = Thread(target=generate_temporal_cluster_map, args=(df_clustered, n_clusters, eps_spatial, eps_temporal, min_samples, id))
+    thread.daemon = True
+    thread.start()
+    print(f"🚀 Spatio-temporal cluster map for eps spatial '{eps_spatial}', eps temporal '{eps_temporal}' and min samples '{min_samples}' started in background.")

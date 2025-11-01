@@ -14,12 +14,13 @@ from sql_engine import engine
 from constants import YEAR, MONTH, DAY, EVENT_TYPE, COUNTRY, GEOGRAPHIC_SECTIONS, LONGITUDE, REGION, NATURAL_EVENT_ID, \
     LATITUDE_END, LONGITUDE_END,  TEMPLATES_PATH, EVENT_INTENSITY, INTENSITY_LABELS, INTENSITY_SECTIONS, \
     MAPS_PATH
-from subprocessing import start_map_generation, generate_map_outliers, generate_map_geographic_cluster
+from subprocessing import start_map_generation, generate_map_outliers, generate_map_geographic_cluster, generate_map_spatiotemporal_cluster
 
 app = Flask(__name__)
 
 df_events = None
 id = 0
+id_spatiotemporal = 0
 
 outliers_cache = {
     "df" : pl.DataFrame({}),
@@ -138,6 +139,12 @@ def geographical_clustering_map(num_cluster, cell_size):
     global id
     old_id = id - 1
     return render_template(f'{MAPS_PATH}cluster_maps/geographic_map_{num_cluster}_clusters_{cell_size}_cell_size_{old_id}.html')
+
+@app.route('/cluster_analysis/spatiotemporal_cluster/<float:eps_spatial>/<int:eps_temporal>/<int:min_samples>/map')
+def spatiotemporal_clustering_map(eps_spatial, eps_temporal, min_samples):
+    global id_spatiotemporal
+    old_id = id_spatiotemporal - 1
+    return render_template(f'{MAPS_PATH}cluster_maps/spatial_temporal_map_{eps_spatial}_spatial_{eps_temporal}_temporal_{min_samples}_samples_{old_id}.html')
 
 
 
@@ -414,6 +421,25 @@ def api_seasonality():
     return fig_to_json_response(fig)
 
 
+@app.route('/api/geographic_analysis/country_statistics')
+def get_country_statistics():
+    """Endpoint API per ottenere statistiche per paese"""
+
+    df = engine.get_joined_events_df(True, 'clustering')
+    stats = calculate_country_statistics(df)
+    data = stats.to_dicts()
+
+    # Arrotonda i float
+    for row in data:
+        for key, value in row.items():
+            if isinstance(value, float):
+                row[key] = round(value, 2)
+
+    return jsonify({'success': True, 'data': data})
+
+
+
+
 @app.route('/api/geographic_analysis/top_countries_by_events/<string:event_type>/<int:limit>/<int:offset>')
 def api_top_countries_by_events(event_type, limit, offset):
     if event_type != 'all':
@@ -684,11 +710,37 @@ def api_geographical_cluster(num_cluster, cell_size):
     id += 1
     return jsonify(result)
 
+@app.route('/api/cluster_analysis/spatiotemporal_cluster/<float:eps_spatial>/<int:eps_temporal>/<int:min_samples>')
+def api_spatiotemporal_cluster(eps_spatial, eps_temporal, min_samples):
+    global id_spatiotemporal
+    df = engine.get_joined_events_df(True, 'clustering').with_columns([
+        pl.col(YEAR).cast(pl.Int64),
+        pl.col(MONTH).cast(pl.Int64),
+        pl.col(DAY).cast(pl.Int64)
+    ])
+    result = prepare_spatiotemporal_payload(df, eps_spatial, eps_temporal, min_samples)
+    clustered_df = result.pop("df_clustered")
+    generate_map_spatiotemporal_cluster(clustered_df, result['summary']['n_clusters'], eps_spatial, eps_temporal, min_samples, id_spatiotemporal)
+    id_spatiotemporal += 1
+    return jsonify(result)
+
+
+
+
 @app.route('/api/cluster_analysis/geographical_cluster/<int:num_cluster>/<int:cell_size>/status')
 def api_geographical_cluster_map_status(num_cluster, cell_size):
     global id
     old_id = id - 1
     file_path = f'{TEMPLATES_PATH}{MAPS_PATH}cluster_maps/geographic_map_{num_cluster}_clusters_{cell_size}_cell_size_{old_id}.html'
+    return jsonify({
+        'ready': os.path.exists(file_path)
+    })
+
+@app.route('/api/cluster_analysis/spatiotemporal_cluster/<float:eps_spatial>/<int:eps_temporal>/<int:min_samples>/status')
+def api_spatiotemporal_cluster_map_status(eps_spatial, eps_temporal, min_samples):
+    global id_spatiotemporal
+    old_id = id_spatiotemporal - 1
+    file_path = f'{TEMPLATES_PATH}{MAPS_PATH}cluster_maps/spatial_temporal_map_{eps_spatial}_spatial_{eps_temporal}_temporal_{min_samples}_samples_{old_id}.html'
     return jsonify({
         'ready': os.path.exists(file_path)
     })
