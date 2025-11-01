@@ -85,7 +85,8 @@ class SqlEngine:
 
     def get_from_full_event(self, event_type, columns, not_null_columns=[]):
         where_clause = "" if not_null_columns == [] else f"WHERE {not_null_columns[0]} IS NOT NULL " + \
-                                                          "AND ".join([f"{column_not_null} IS NOT NULL" for
+                                                         ("AND " if len(not_null_columns) > 1 else "")  + \
+                                                         " AND ".join([f"{column_not_null} IS NOT NULL" for
                                                                        column_not_null in not_null_columns[1:]])
         return self.query(FULL_EVENT_QUERY.format(columns=", ".join(columns),
                                                   event=TABLE_BY_EVENT[event_type], where_clause=where_clause))

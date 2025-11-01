@@ -72,9 +72,18 @@ def fig_to_json_response(fig, jsonfy = True):
 
 
 def get_outliers_analysis(engine: SqlEngine, column, event_type, return_table=False):
+    not_null_columns = [column, LATITUDE, LONGITUDE] if return_table else [column]
     dataframe = engine.get_from_full_event(event_type, (['ne.*'] + [f"e.{column}"]
                                                         if column in EVENT_SPECIFIC_COLUMNS else []) \
-        if return_table else [column], not_null_columns=[column])
+        if return_table else [column], not_null_columns=not_null_columns)
+    if event_type == 'eruption':
+        dataframe = dataframe.with_columns(
+            pl.col("vei").cast(pl.Float64)
+        )
+    elif event_type == 'tornado':
+        dataframe = dataframe.with_columns(
+            pl.col("f_scale").cast(pl.Float64)
+        )
 
     Q1 = dataframe[column].quantile(0.25)
     Q3 = dataframe[column].quantile(0.75)

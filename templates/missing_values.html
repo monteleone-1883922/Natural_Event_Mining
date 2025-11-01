@@ -44,6 +44,18 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-chart-bar"></i> Missing Percentage by Column
+                        <form id="countryFormMissingPercentChart" class="d-flex align-items-center" onsubmit=" update_prevent_default_missingPercentChart();">
+                             <label for="eventType_missingPercentChart" class="me-1 mb-0">EventType:</label>
+                             <select id="eventType_missingPercentChart" class="form-select form-select-sm me-2" style="width: 120px;">
+                                 <option value="all">All</option>
+                                 <option value="tornado">Tornado</option>
+                                 <option value="eruption">Eruption</option>
+                                 <option value="tsunami">Tsunami</option>
+                                 <option value="earthquake">Earthquake</option>
+                             </select>
+
+                            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                        </form>
                         <button class="btn btn-sm btn-light" onclick="reloadChart(
                             '/api/missing-values/percentage-chart',
                             'missingPercentChart',
@@ -71,6 +83,18 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <i class="fas fa-sort-amount-down"></i> Missing Count by Column
+                        <form id="countryFormMissingCountChart" class="d-flex align-items-center" onsubmit=" update_prevent_default_missingCountChart();">
+                             <label for="eventType_missingCountChart" class="me-1 mb-0">EventType:</label>
+                             <select id="eventType_missingCountChart" class="form-select form-select-sm me-2" style="width: 120px;">
+                                 <option value="all">All</option>
+                                 <option value="tornado">Tornado</option>
+                                 <option value="eruption">Eruption</option>
+                                 <option value="tsunami">Tsunami</option>
+                                 <option value="earthquake">Earthquake</option>
+                             </select>
+
+                            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                        </form>
                         <button class="btn btn-sm btn-light" onclick="reloadChart(
                             '/api/missing-values/count-chart',
                             'missingCountChart',
@@ -130,14 +154,14 @@
 <script>
     // Carica il grafico percentuali
     loadChart(
-        '/api/missing-values/percentage-chart',
+        '/api/missing-values/percentage-chart/all',
         'missingPercentChart',
         'loading-missingPercentChart'
     );
 
     // Carica il grafico conteggi
     loadChart(
-        '/api/missing-values/count-chart',
+        '/api/missing-values/count-chart/all',
         'missingCountChart',
         'loading-missingCountChart'
     );
@@ -148,5 +172,29 @@
         'missingHeatmap',
         'loading-missingHeatmap'
     );
+
+    function update_missingPercentChart() {
+        const eventType = document.getElementById('eventType_missingPercentChart').value;
+        const url = `/api/missing-values/percentage-chart/${eventType}`;
+        reloadChart(url, 'missingPercentChart', 'loading-missingPercentChart');
+    }
+
+    function update_prevent_default_missingPercentChart(){
+        event.preventDefault();
+        update_missingPercentChart();
+    }
+
+    function update_missingCountChart() {
+        const eventType = document.getElementById('eventType_missingCountChart').value;
+        const url = `/api/missing-values/count-chart/${eventType}`;
+        reloadChart(url, 'missingCountChart', 'loading-missingCountChart');
+    }
+
+    function update_prevent_default_missingCountChart(){
+        event.preventDefault();
+        update_missingCountChart();
+    }
+
+
 </script>
 {% endblock %}

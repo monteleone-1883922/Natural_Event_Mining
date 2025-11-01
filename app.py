@@ -151,17 +151,18 @@ def spatiotemporal_clustering_map(eps_spatial, eps_temporal, min_samples):
 
 
 
-@app.route('/api/missing-values/percentage-chart')
-def api_missing_percentage_chart():
+@app.route('/api/missing-values/percentage-chart/<string:event_type>')
+def api_missing_percentage_chart(event_type):
     """Grafico percentuali missing per colonna"""
+    df_analysis = df_events.filter(pl.col(EVENT_TYPE) == event_type) if event_type != 'all' else df_events
 
     # Calcola percentuali missing
-    total_rows = len(df_events)
+    total_rows = len(df_analysis)
     missing_pct = []
     columns = []
 
-    for col in df_events.columns:
-        missing_count = df_events[col].null_count()
+    for col in df_analysis.columns:
+        missing_count = df_analysis[col].null_count()
         pct = (missing_count / total_rows) * 100
         missing_pct.append(pct)
         columns.append(col)
@@ -202,7 +203,7 @@ def api_missing_percentage_chart():
     ])
 
     fig.update_layout(
-        title='Missing Values Percentage by Column',
+        title=f'Missing Values Percentage by Column for {event_type} events',
         xaxis_title='Missing Percentage (%)',
         yaxis_title='Column',
         template='plotly_white',
@@ -218,16 +219,18 @@ def api_missing_percentage_chart():
     return jsonify(json.loads(fig.to_json()))
 
 
-@app.route('/api/missing-values/count-chart')
-def api_missing_count_chart():
+@app.route('/api/missing-values/count-chart/<string:event_type>')
+def api_missing_count_chart(event_type):
     """Grafico conteggio assoluto missing per colonna"""
+
+    df_analysis = df_events.filter(pl.col(EVENT_TYPE) == event_type) if event_type != 'all' else df_events
 
     # Calcola conteggi missing
     missing_counts = []
     columns = []
 
-    for col in df_events.columns:
-        missing_count = df_events[col].null_count()
+    for col in df_analysis.columns:
+        missing_count = df_analysis[col].null_count()
         if missing_count > 0:  # Mostra solo colonne con missing
             missing_counts.append(missing_count)
             columns.append(col)
@@ -256,7 +259,7 @@ def api_missing_count_chart():
     ])
 
     fig.update_layout(
-        title='Absolute Missing Count by Column',
+        title=f'Absolute Missing Count by Column for {event_type} events',
         xaxis_title='Number of Missing Values',
         yaxis_title='Column',
         template='plotly_white',
@@ -680,7 +683,7 @@ def api_analyze_column(event_type, column):
 def api_analyze_column_table(event_type, column, page, page_size):
     df = outliers_cache["df"] if outliers_cache["event_type"] == event_type and outliers_cache["column"] == column \
         else get_outliers_analysis(engine, column, event_type, return_table=True)
-    generate_map_outliers(df, event_type, column)
+    generate_map_outliers(engine, event_type, column)
     total_outliers = df.height
     if event_type != outliers_cache["event_type"] or column != outliers_cache["column"]:
         outliers_cache["df"] = df

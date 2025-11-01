@@ -12,6 +12,7 @@ from sql_engine import SqlEngine
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
+from utility_functions import get_outliers_analysis
 
 
 def print_progress_bar(percentuale, lunghezza_barra=20):
@@ -509,12 +510,13 @@ def start_map_generation(engine: SqlEngine):
     elif not missing:
         print("✅ All maps already generated.")
 
-def generate_map_outliers(df_outliers, event_type, column):
+def generate_map_outliers(engine: SqlEngine, event_type, column):
+    df_outliers = get_outliers_analysis(engine, column, event_type, True)
     map_name = f"outliers_heatmap_{event_type}_{column}.html"
     if os.path.exists(f"{TEMPLATES_PATH}{MAPS_PATH}outliers_maps/{map_name}"):
         print(f"✅ Outliers heatmap for {event_type} and column '{column}' already exists.")
         return
-    thread = Thread(target=create_outliers_heatmap, args=(df_outliers.clone(), map_name))
+    thread = Thread(target=create_outliers_heatmap, args=(df_outliers, map_name))
     thread.daemon = True
     thread.start()
     print(f"🚀 Outliers heatmap for {event_type} and column '{column}' started in background.")
