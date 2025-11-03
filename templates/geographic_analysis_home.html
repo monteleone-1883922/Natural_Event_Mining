@@ -79,7 +79,6 @@
                                     <tr>
                                         <th>Country</th>
                                         <th>Total Events</th>
-                                        <th>Events/Year</th>
                                         <th>Total Deaths</th>
                                         <th>Avg Deaths</th>
                                         <th>Total Damage ($M)</th>
@@ -93,6 +92,7 @@
                                         <th>Percentage Tsunamis</th>
                                         <th>Events Frequency</th>
                                         <th>Event Types</th>
+                                        <th>Events/Year</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -253,7 +253,6 @@ function loadCountryStats() {
                     tr.innerHTML = `
                         <td><strong>${row.country}</strong></td>
                         <td>${row.total_events}</td>
-                        <td>${row.events_per_year.toFixed(2)}</td>
                         <td>${row.total_deaths}</td>
                         <td>${row.avg_deaths.toFixed(1)}</td>
                         <td>${row.total_damage.toFixed(1)}M</td>
@@ -267,6 +266,7 @@ function loadCountryStats() {
                         <td>${row.pct_tsunami.toFixed(2)}</td>
                         <td>${row.frequency.toFixed(2)}</td>
                         <td>${row.event_types_count}</td>
+                        <td>${row.events_per_year.toFixed(2)}</td>
                     `;
                     tbody.appendChild(tr);
                 });

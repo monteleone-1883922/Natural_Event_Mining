@@ -5,12 +5,13 @@ import pandas as pd
 import json
 import plotly.express as px
 import plotly.graph_objects as go
+from scipy.spatial.distance import cdist
 
 from flask import jsonify
 import numpy as np
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.metrics import silhouette_score, davies_bouldin_score
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 import matplotlib.cm as cm
 
 from constants import MULTIPLICATOR_OUTLIERS_ANALYSIS, EVENT_SPECIFIC_COLUMNS, LATITUDE, LONGITUDE, EVENT_TYPE, YEAR, \
@@ -70,6 +71,57 @@ def fig_to_json_response(fig, jsonfy = True):
 
     return jsonify(fig_json) if jsonfy else fig_json
 
+
+def create_time_index(df_polars):
+    """
+    Crea un indice temporale numerico progressivo dai campi anno, mese, giorno.
+    Gestisce anche anni negativi (a.C.)
+    Input: Polars DataFrame
+    Output: Polars DataFrame con time_index e date_label
+    """
+    # Assicurati che le colonne siano numeriche e ordina
+    df = df_polars.filter(
+        (pl.col(YEAR).is_not_null()) &
+        (pl.col(MONTH).is_not_null()) &
+        (pl.col(DAY).is_not_null())
+    ).with_columns([
+        pl.col(YEAR).cast(pl.Int32),
+        pl.col(MONTH).cast(pl.Int32),
+        pl.col(DAY).cast(pl.Int32)
+    ]).sort([YEAR, MONTH, DAY])
+
+    # Crea indice progressivo
+    df = df.with_row_count('time_index')
+
+    # Crea etichetta leggibile per i grafici
+    df = df.with_columns([
+        pl.when(pl.col(YEAR) < 0)
+        .then(
+            pl.format(
+                "{} a.C.-{}-{}",
+                pl.col(YEAR).abs(),
+                pl.col(MONTH).cast(pl.Utf8).str.zfill(2),
+                pl.col(DAY).cast(pl.Utf8).str.zfill(2)
+            )
+        )
+        .otherwise(
+            pl.format(
+                "{} d.C.-{}-{}",
+                pl.col(YEAR),
+                pl.col(MONTH).cast(pl.Utf8).str.zfill(2),
+                pl.col(DAY).cast(pl.Utf8).str.zfill(2)
+            )
+        )
+        .alias('date_label')
+    ])
+
+    return df
+
+def clean_nan_for_json(value):
+    """Converte NaN in None (null in JSON)"""
+    if isinstance(value, (list, np.ndarray, pd.Series)):
+        return [None if pd.isna(v) else v for v in value]
+    return None if pd.isna(value) else value
 
 def get_outliers_analysis(engine: SqlEngine, column, event_type, return_table=False):
     not_null_columns = [column, LATITUDE, LONGITUDE] if return_table else [column]
@@ -397,6 +449,68 @@ def geographical_clustering(df: pl.DataFrame,n_clusters: int = 6, cell_size: int
 # ============================================
 # 3. CLUSTERING SPAZIO-TEMPORALE (ST-DBSCAN)
 # ============================================
+def calculate_dunn_index(coords, labels):
+    """
+    Calcola il Dunn Index per valutare la qualità del clustering.
+
+    Dunn Index = min_inter_cluster_distance / max_intra_cluster_distance
+
+    Valori più alti = clustering migliore
+    - Massimizza la distanza tra cluster (separazione)
+    - Minimizza la distanza dentro i cluster (coesione)
+
+    Args:
+        coords: array di coordinate (n_samples, n_features)
+        labels: array di label dei cluster (n_samples,)
+
+    Returns:
+        dunn_index: float, più alto è meglio
+    """
+    unique_labels = np.unique(labels)
+    n_clusters = len(unique_labels)
+
+    if n_clusters < 2:
+        return None
+
+    # 1. Calcola distanza MINIMA tra cluster diversi (inter-cluster)
+    min_inter_cluster_dist = np.inf
+
+    for i in range(n_clusters):
+        for j in range(i + 1, n_clusters):
+            # Punti del cluster i e j
+            cluster_i_points = coords[labels == unique_labels[i]]
+            cluster_j_points = coords[labels == unique_labels[j]]
+
+            # Distanza minima tra tutti i punti dei due cluster
+            distances = cdist(cluster_i_points, cluster_j_points, metric='euclidean')
+            min_dist = np.min(distances)
+
+            if min_dist < min_inter_cluster_dist:
+                min_inter_cluster_dist = min_dist
+
+    # 2. Calcola distanza MASSIMA dentro ogni cluster (intra-cluster)
+    max_intra_cluster_dist = 0
+
+    for label in unique_labels:
+        cluster_points = coords[labels == label]
+
+        if len(cluster_points) < 2:
+            continue
+
+        # Distanza massima tra punti dello stesso cluster (diametro)
+        distances = cdist(cluster_points, cluster_points, metric='euclidean')
+        max_dist = np.max(distances)
+
+        if max_dist > max_intra_cluster_dist:
+            max_intra_cluster_dist = max_dist
+
+    # 3. Dunn Index
+    if max_intra_cluster_dist == 0:
+        return None  # Evita divisione per zero
+
+    dunn_index = min_inter_cluster_dist / max_intra_cluster_dist
+
+    return dunn_index
 
 def geospatial_temporal_clustering(df: pl.DataFrame,
                                eps_spatial: float = 2.0,  # gradi (circa 220 km)
@@ -464,11 +578,21 @@ def geospatial_temporal_clustering(df: pl.DataFrame,
 
     n_clusters = len(np.unique(labels[labels >= 0]))
     n_noise = (labels == -1).sum()
-
+    mask_no_noise = labels >= 0
+    coords_no_noise = coords_time[mask_no_noise]
+    labels_no_noise = labels[mask_no_noise]
+    silhouette_value = silhouette_score(
+        coords_no_noise,
+        labels_no_noise,
+        metric='euclidean'
+    )
+    # dunn_index = calculate_dunn_index(coords_no_noise, labels_no_noise)
 
     stats = {
         'n_clusters': n_clusters,
         'n_noise': int(n_noise),
+        'silhouette_value': silhouette_value,
+        # 'dunn_index': dunn_index,
         'pct_clustered': float(((df.height - n_noise) / df.height * 100) if df.height > 0 else 0),
         'cluster_stats': cluster_stats,
         'df_clustered': df_clustered
@@ -503,6 +627,8 @@ def prepare_spatiotemporal_payload(df ,
     summary = {
         'n_clusters': stats['n_clusters'],
         'n_noise': stats['n_noise'],
+        'silhouette_value': round(stats['silhouette_value'], 2),
+        # 'dunn_index': round(stats['dunn_index'], 2),
         'pct_clustered': round(stats['pct_clustered'], 1),
         'total_events': df_clustered.height,
         'eps_spatial': eps_spatial,

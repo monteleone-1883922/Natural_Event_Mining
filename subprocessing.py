@@ -444,12 +444,12 @@ def generate_temporal_cluster_map(df_clustered: pl.DataFrame, n_clusters, eps_sp
     # Aggiungi legenda cluster
     legend_html = f"""
     <div style="
-        position: fixed;
-        bottom: 20px; left: 20px; width: 240px;
-        background-color: white; border:2px solid grey; z-index:9999; font-size:13px;
-        padding: 12px; border-radius: 8px; box-shadow: 2px 2px 6px rgba(0,0,0,0.3);">
-        <b>🗺️ Spatio-Temporal Clusters</b><br>
-        <small style="color: #666;">Use time slider to explore evolution</small><br><br>
+    position: fixed;
+    bottom: 20px; right: 20px; width: 240px;
+    background-color: white; border:2px solid grey; z-index:9999; font-size:13px;
+    padding: 12px; border-radius: 8px; box-shadow: 2px 2px 6px rgba(0,0,0,0.3);">
+    <b>🗺️ Spatio-Temporal Clusters</b><br>
+    <small style="color: #666;">Use time slider to explore evolution</small><br><br>
     """
 
     # Aggiungi solo i primi 10 cluster per non sovraffollare

@@ -96,6 +96,134 @@
             </div>
         </div>
 
+        <div class="row">
+            <!-- Missing Percentage Chart -->
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Decomposition Chart
+                        <form id="decompositionFilterForm" class="row g-3 align-items-end" onsubmit="updateDecomposition_prevent_default()">
+                            <div class="col-md-12 col-lg-4">
+                                <label for="columnSelect" class="form-label">Column to Analyze:</label>
+                                <select id="columnSelect" class="form-select" required>
+                                    <option value="">Select a column...</option>
+                                    <option value="frequency" data-pair='["count", "earthquake"]'>Frequency-Earthquake</option>
+                                    <option value="magnitude" data-pair='["eqmagnitude", "earthquake"]'>Magnitude-Earthquake</option>
+                                    <option value="depth" data-pair='["eqdepth", "earthquake"]'>Depth-Earthquake</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "earthquake"]'>Millions Dollars Damage-Earthquake</option>
+                                    <option value="deaths"  data-pair='["deaths", "earthquake"]'>Deaths-Earthquake</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "earthquake"]'>Houses Destroyed-Earthquake</option>
+                                    <option value="VEI" data-pair='["vei", "eruption"]'>VEI-Eruption</option>
+                                    <option value="frequency" data-pair='["count", "eruption"]'>Frequency-Eruption</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "eruption"]'>Millions Dollars Damage-Eruption</option>
+                                    <option value="deaths"  data-pair='["deaths", "eruption"]'>Deaths-Eruption</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "eruption"]'>Houses Destroyed-Eruption</option>
+                                    <option value="f_scale"  data-pair='["f_scale", "tornado"]'>F Scale-Tornado</option>
+                                    <option value="width"  data-pair='["width", "tornado"]'>Width-Tornado</option>
+                                    <option value="frequency"  data-pair='["count", "tornado"]'>Frequency-Tornado</option>
+                                    <option value="trace_length"  data-pair='["trace_length", "tornado"]'>Trace Length-Tornado</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "tornado"]'>Millions Dollars Damage-Tornado</option>
+                                    <option value="deaths"  data-pair='["deaths", "tornado"]'>Deaths-Tornado</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "tornado"]'>Houses Destroyed-Tornado</option>
+                                    <option value="milliondollarscropsdamage"  data-pair='["milliondollarscropsdamage", "tornado"]'>Millions Dollars Crops Damage-Tornado</option>
+                                    <option value="maxwaterheight" data-pair='["maxwaterheight", "tsunami"]'>Max Water Height (m)-Tsunami</option>
+                                    <option value="numdeposits" data-pair='["numdeposits", "tsunami"]'>Num Deposits-Tsunami</option>
+                                    <option value="numrunups" data-pair='["numrunups", "tsunami"]'>Num Runup-Tsunami</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "tsunami"]'>Millions Dollars Damage-Tsunami</option>
+                                    <option value="deaths"  data-pair='["deaths", "tsunami"]'>Deaths-Tsunami</option>
+                                    <option value="frequency"  data-pair='["count", "tsunami"]'>Frequency-Tsunami</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "tsunami"]'>Houses Destroyed-Tsunami</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12 col-lg-4">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search me-2"></i>Analyze decomposition for field
+                                </button>
+                            </div>
+                        </form>
+                        <button class="btn btn-sm btn-light" onclick="" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner -->
+                        <div id="loading-decompositionChart" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading temporal distribution...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="decompositionChart" class="chart-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Missing Percentage Chart -->
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <i class="fas fa-th"></i> Auto Correlation Chart
+                        <form id="acrFilterForm" class="row g-3 align-items-end" onsubmit="updateAcr_prevent_default()">
+                            <div class="col-md-12 col-lg-4">
+                                <label for="acrColumnSelect" class="form-label">Column to Analyze:</label>
+                                <select id="acrColumnSelect" class="form-select" required>
+                                    <option value="">Select a column...</option>
+                                    <option value="frequency" data-pair='["count", "earthquake"]'>Frequency-Earthquake</option>
+                                    <option value="magnitude" data-pair='["eqmagnitude", "earthquake"]'>Magnitude-Earthquake</option>
+                                    <option value="depth" data-pair='["eqdepth", "earthquake"]'>Depth-Earthquake</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "earthquake"]'>Millions Dollars Damage-Earthquake</option>
+                                    <option value="deaths"  data-pair='["deaths", "earthquake"]'>Deaths-Earthquake</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "earthquake"]'>Houses Destroyed-Earthquake</option>
+                                    <option value="VEI" data-pair='["vei", "eruption"]'>VEI-Eruption</option>
+                                    <option value="frequency" data-pair='["count", "eruption"]'>Frequency-Eruption</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "eruption"]'>Millions Dollars Damage-Eruption</option>
+                                    <option value="deaths"  data-pair='["deaths", "eruption"]'>Deaths-Eruption</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "eruption"]'>Houses Destroyed-Eruption</option>
+                                    <option value="f_scale"  data-pair='["f_scale", "tornado"]'>F Scale-Tornado</option>
+                                    <option value="width"  data-pair='["width", "tornado"]'>Width-Tornado</option>
+                                    <option value="frequency"  data-pair='["count", "tornado"]'>Frequency-Tornado</option>
+                                    <option value="trace_length"  data-pair='["trace_length", "tornado"]'>Trace Length-Tornado</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "tornado"]'>Millions Dollars Damage-Tornado</option>
+                                    <option value="deaths"  data-pair='["deaths", "tornado"]'>Deaths-Tornado</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "tornado"]'>Houses Destroyed-Tornado</option>
+                                    <option value="milliondollarscropsdamage"  data-pair='["milliondollarscropsdamage", "tornado"]'>Millions Dollars Crops Damage-Tornado</option>
+                                    <option value="maxwaterheight" data-pair='["maxwaterheight", "tsunami"]'>Max Water Height (m)-Tsunami</option>
+                                    <option value="numdeposits" data-pair='["numdeposits", "tsunami"]'>Num Deposits-Tsunami</option>
+                                    <option value="numrunups" data-pair='["numrunups", "tsunami"]'>Num Runup-Tsunami</option>
+                                    <option value="damagemillionsdollars"  data-pair='["damagemillionsdollars", "tsunami"]'>Millions Dollars Damage-Tsunami</option>
+                                    <option value="deaths"  data-pair='["deaths", "tsunami"]'>Deaths-Tsunami</option>
+                                    <option value="frequency"  data-pair='["count", "tsunami"]'>Frequency-Tsunami</option>
+                                    <option value="housesdestroyed"  data-pair='["housesdestroyed", "tsunami"]'>Houses Destroyed-Tsunami</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12 col-lg-4">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search me-2"></i>Analyze auto correlation for field
+                                </button>
+                            </div>
+                        </form>
+                        <button class="btn btn-sm btn-light" onclick="" title="Reload chart">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner -->
+                        <div id="loading-acrChart" class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="loading-text">Loading temporal distribution...</div>
+                        </div>
+                        <!-- Chart container -->
+                        <div id="acrChart" class="chart-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 
         <!-- Heatmap -->
 
@@ -132,6 +260,39 @@
         const containerId = `heatmap-${event_type}`;
         const loadingId = `loading-${event_type}`;
         reloadChart(url, containerId, loadingId);
+    }
+
+    function updateDecomposition_prevent_default() {
+        event.preventDefault();
+        const selection = document.getElementById('columnSelect');
+        const selectedOption = selection.options[selection.selectedIndex];
+        const pair = JSON.parse(selectedOption.getAttribute('data-pair'));
+        const column = pair[0];
+        const event_type = pair[1];
+
+        if (!column || !event_type) {
+            showError('Please select both event type and column to analyze.');
+            return;
+        }
+         const url = `/api/temporal_analysis/decomposition/${event_type}/${column}`;
+        reloadChart(url, 'decompositionChart', 'loading-decompositionChart');
+    }
+
+
+    function updateAcr_prevent_default() {
+        event.preventDefault();
+        const selection = document.getElementById('acrColumnSelect');
+        const selectedOption = selection.options[selection.selectedIndex];
+        const pair = JSON.parse(selectedOption.getAttribute('data-pair'));
+        const column = pair[0];
+        const event_type = pair[1];
+
+        if (!column || !event_type) {
+            showError('Please select both event type and column to analyze.');
+            return;
+        }
+         const url = `/api/temporal_analysis/acr/${event_type}/${column}`;
+        reloadChart(url, 'acrChart', 'loading-acrChart');
     }
 
 

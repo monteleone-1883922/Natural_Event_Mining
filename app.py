@@ -7,6 +7,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import polars as pl
 from utility_functions import *
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.stattools import acf
 from markupsafe import Markup
 
 from plotly.subplots import make_subplots
@@ -128,7 +130,7 @@ def maps_page(map):
 
 @app.route("/intensity_analysis/heatmaps/<string:map>")
 def heatmaps_page(map):
-    return render_template(f'{MAPS_PATH}intensiity_maps/intensity_map_{map}.html')
+    return render_template(f'{MAPS_PATH}intensity_maps/intensity_map_{map}.html')
 
 @app.route('/outlier_analysis/heatmap/<string:event_type>/<string:column>')
 def outlier_heatmap(event_type, column):
@@ -342,6 +344,148 @@ def api_event_temporal_distribution():
     )
 
     return fig_to_json_response(fig_px)
+
+
+@app.route('/api/temporal_analysis/decomposition/<string:event_type>/<string:column>')
+def decomposition(event_type, column):
+    analyze_frequency = (column == 'count')
+    not_null_columns = [YEAR, MONTH, DAY] + [] if analyze_frequency else [column]
+    df = engine.get_from_full_event(event_type, (['ne.*'] + ([f"e.{column}"]
+                                                        if (not analyze_frequency and column in EVENT_SPECIFIC_COLUMNS) else []) + ([f"e.tornado_id"]
+                                                 if event_type == 'tornado' else []))
+        , not_null_columns=not_null_columns)
+    if event_type == 'eruption' and column == 'vei':
+        df = df.with_columns(
+            pl.col("vei").cast(pl.Float64)
+        )
+    elif event_type == 'tornado' and column == 'f_scale':
+        df = df.with_columns(
+            pl.col("f_scale").cast(pl.Float64)
+        ).filter(pl.col(column) >= 0).group_by(['tornado_id']).agg([
+            pl.col(column).max().alias(column),
+            pl.col(YEAR).first(),
+            pl.col(MONTH).first(),
+            pl.col(DAY).first(),
+        ])
+
+    if analyze_frequency:
+        df = df.unique(subset=['id']).select([
+            YEAR, MONTH, DAY
+        ])
+        df = df.group_by([YEAR, MONTH, DAY]).agg([
+            pl.len().alias('count')
+        ])
+
+
+    df = create_time_index(df)
+
+    # statsmodels richiede Pandas Series, quindi convertiamo solo la colonna necessaria
+    events_series = df.select(['time_index', column]).to_pandas().set_index('time_index')[column]
+
+    time_diffs = df.select([
+        (pl.col('time_index') - pl.col('time_index').shift(1)).alias('diff')
+    ]).filter(pl.col('diff').is_not_null())['diff'].to_list()
+
+    avg_diff = sum(time_diffs) / len(time_diffs) if time_diffs else 1
+    n_points = df.height
+    # Stima period intelligente
+    if avg_diff < 2:  # Dati quasi consecutivi (giornalieri)
+        # Per dati giornalieri, usa stagionalità annuale
+        period = 365
+    elif avg_diff < 40:  # Dati mensili circa
+        period = 12
+    else:
+        # Dati molto sparsi, decomposizione non ha senso
+        period = max(12, min(n_points // 3, 365))
+
+    # Assicurati che period sia valido
+    if n_points < 2 * period:
+        period = max(2, n_points // 3)
+
+    # Decomposizione
+    result = seasonal_decompose(events_series, model='additive', period=period)
+
+    # Converti date_label in lista per Plotly
+    date_labels = df['date_label'].to_list()
+
+    observed_clean = clean_nan_for_json(result.observed)
+    trend_clean = clean_nan_for_json(result.trend)
+    seasonal_clean = clean_nan_for_json(result.seasonal)
+    resid_clean = clean_nan_for_json(result.resid)
+
+    # Costruisci figura Plotly
+    fig = make_subplots(rows=4, cols=1, shared_xaxes=True,
+                        subplot_titles=['Observed', 'Trend', 'Seasonal', 'Residual'])
+
+    fig.add_trace(go.Scatter(x=date_labels, y=observed_clean, name='Observed'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=date_labels, y=trend_clean, name='Trend'), row=2, col=1)
+    fig.add_trace(go.Scatter(x=date_labels, y=seasonal_clean, name='Seasonal'), row=3, col=1)
+    fig.add_trace(go.Scatter(x=date_labels, y=resid_clean, name='Residual'), row=4, col=1)
+
+    fig.update_layout(
+        height=800,
+        title_text='Time Series Decomposition',
+        xaxis4_title='Data'
+    )
+
+    # Mostra solo alcune etichette sull'asse x
+    fig.update_xaxes(
+        tickmode='auto',
+        nticks=20
+    )
+
+    return fig_to_json_response(fig)
+
+
+@app.route('/api/temporal_analysis/acr/<string:event_type>/<string:column>')
+def acf_plot(event_type, column):
+    analyze_frequency = (column == 'count')
+    not_null_columns = [YEAR, MONTH, DAY] + [] if analyze_frequency else [column]
+    df = engine.get_from_full_event(event_type, (['ne.*'] + ([f"e.{column}"]
+                                                             if (
+                not analyze_frequency and column in EVENT_SPECIFIC_COLUMNS) else []) + ([f"e.tornado_id"]
+                                                                                        if event_type == 'tornado' else []))
+                                    , not_null_columns=not_null_columns)
+    if event_type == 'eruption' and column == 'vei':
+        df = df.with_columns(
+            pl.col("vei").cast(pl.Float64)
+        )
+    elif event_type == 'tornado' and column == 'f_scale':
+        df = df.with_columns(
+            pl.col("f_scale").cast(pl.Float64)
+        ).filter(pl.col(column) >= 0).group_by(['tornado_id']).agg([
+            pl.col(column).max().alias(column),
+            pl.col(YEAR).first(),
+            pl.col(MONTH).first(),
+            pl.col(DAY).first(),
+        ])
+
+    if analyze_frequency:
+        df = df.unique(subset=['id']).select([
+            YEAR, MONTH, DAY
+        ])
+        df = df.group_by([YEAR, MONTH, DAY]).agg([
+            pl.len().alias('count')
+        ])
+    df = create_time_index(df)
+
+    events_array = df[column].to_numpy()
+
+    acf_values = acf(events_array, nlags=20)
+    lags = np.arange(len(acf_values))
+
+    # Pulisci NaN anche qui
+    acf_clean = clean_nan_for_json(acf_values)
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=lags, y=acf_clean))
+    fig.update_layout(
+        title='Autocorrelation Function (ACF)',
+        xaxis_title='Lag',
+        yaxis_title='Autocorrelation'
+    )
+
+    return fig_to_json_response(fig)
 
 @app.route('/api/temporal_analysis/monthly_distribution/<string:event_type>')
 def api_monthly_distribution(event_type):

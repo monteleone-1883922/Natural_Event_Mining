@@ -321,43 +321,43 @@
                     </form>
                 </div>
 
-                <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-12">
-                                    <div class="card h-100 border-primary navigation-card">
-                                        <div class="card-body text-center">
-                                            <i class="fas fa-clock fa-3x text-primary mb-3"></i>
-                                            <h5 class="card-title">Interactive Temporal Map</h5>
-                                            <p class="card-text">Explore cluster evolution over time with the time
-                                                slider</p>
+<!--                <div class="card-body">-->
+<!--                            <div class="row g-3">-->
+<!--                                <div class="col-md-12">-->
+<!--                                    <div class="card h-100 border-primary navigation-card">-->
+<!--                                        <div class="card-body text-center">-->
+<!--                                            <i class="fas fa-clock fa-3x text-primary mb-3"></i>-->
+<!--                                            <h5 class="card-title">Interactive Temporal Map</h5>-->
+<!--                                            <p class="card-text">Explore cluster evolution over time with the time-->
+<!--                                                slider</p>-->
 
-                                            <button
-                                                    id="viewSTMapButton"
-                                                    class="btn btn-secondary"
-                                                    onclick="openSTClusterMap()"
-                                                    disabled
-                                            >
-                                            <span id="stBtnIconContainer">
-                                                <i class="fas fa-info-circle me-2" id="stBtnIcon"></i>
-                                            </span>
-                                                <span id="stBtnText">First execute clustering</span>
-                                            </button>
+<!--                                            <button-->
+<!--                                                    id="viewSTMapButton"-->
+<!--                                                    class="btn btn-secondary"-->
+<!--                                                    onclick="openSTClusterMap()"-->
+<!--                                                    disabled-->
+<!--                                            >-->
+<!--                                            <span id="stBtnIconContainer">-->
+<!--                                                <i class="fas fa-info-circle me-2" id="stBtnIcon"></i>-->
+<!--                                            </span>-->
+<!--                                                <span id="stBtnText">First execute clustering</span>-->
+<!--                                            </button>-->
 
-                                            <div id="stClusteringMapIndicator" class="mt-3" style="display: none;">
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <div class="spinner-border spinner-border-sm text-primary me-2"
-                                                         role="status">
-                                                        <span class="visually-hidden">Loading...</span>
-                                                    </div>
-                                                    <small class="text-muted">Generating temporal map, please
-                                                        wait...</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<!--                                            <div id="stClusteringMapIndicator" class="mt-3" style="display: none;">-->
+<!--                                                <div class="d-flex align-items-center justify-content-center">-->
+<!--                                                    <div class="spinner-border spinner-border-sm text-primary me-2"-->
+<!--                                                         role="status">-->
+<!--                                                        <span class="visually-hidden">Loading...</span>-->
+<!--                                                    </div>-->
+<!--                                                    <small class="text-muted">Generating temporal map, please-->
+<!--                                                        wait...</small>-->
+<!--                                                </div>-->
+<!--                                            </div>-->
+<!--                                        </div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </div>-->
 
                 <!-- Loading State -->
                 <div id="stLoadingState" class="loading" style="display: none;">
@@ -413,6 +413,24 @@
                                         <div class="stat-value" id="stPctClustered">-</div>
                                     </div>
                                 </div>
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <div class="stat-label">
+                                            <i class="fas fa-percentage stat-icon"></i>
+                                            Silhouette score
+                                        </div>
+                                        <div class="stat-value" id="silhouetteSc">-</div>
+                                    </div>
+                                </div>
+<!--                                <div class="col-md-3">-->
+<!--                                    <div class="stat-item">-->
+<!--                                        <div class="stat-label">-->
+<!--                                            <i class="fas fa-percentage stat-icon"></i>-->
+<!--                                            Dunn Index-->
+<!--                                        </div>-->
+<!--                                        <div class="stat-value" id="dunn_index">-</div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
                             </div>
                         </div>
                     </div>
@@ -782,6 +800,8 @@
                 document.getElementById('stClusteredEvents').textContent = data.summary.total_events - data.summary.n_noise;
                 document.getElementById('stNoiseEvents').textContent = data.summary.n_noise;
                 document.getElementById('stPctClustered').textContent = data.summary.pct_clustered.toFixed(1) + '%';
+                document.getElementById('silhouetteSc').textContent = data.summary.silhouette_value.toFixed(3);
+                // document.getElementById('dunn_index').textContent = data.summary.dunn_index.toFixed(3);
 
                 // Generate top clusters cards
                 generateSTTopClusters(data.top_clusters);

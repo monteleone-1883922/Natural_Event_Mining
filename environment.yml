@@ -12,6 +12,8 @@ dependencies:
   - altair>=5.4.0
   - Flask
   - folium
+  - pandas
+  - scipy
   - plotly
   - seaborn
   - scikit-learn
